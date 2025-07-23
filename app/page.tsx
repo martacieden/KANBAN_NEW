@@ -11,6 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Paperclip, User, Share as ShareIcon } from "lucide-react";
 
 export default function Page() {
   // Define CARD_FIELDS array (without Category and Subtask count)
@@ -22,11 +26,10 @@ export default function Page() {
     { key: "assignee", label: "Assignee", pinned: false },
     { key: "tags", label: "Tags", pinned: false },
     { key: "dueDate", label: "Due date", pinned: false },
-    { key: "progress", label: "Progress", pinned: false },
-    { key: "department", label: "Department", pinned: false },
-    { key: "type", label: "Type", pinned: false },
     { key: "clientInfo", label: "Client info", pinned: false },
     { key: "description", label: "Description", pinned: false },
+    { key: "attachments", label: "Attachments", pinned: false },
+    { key: "comments", label: "Comments", pinned: false },
   ];
   // State for cardFields
   const [cardFields, setCardFields] = useState<Record<string, boolean>>(() => {
@@ -148,9 +151,6 @@ export default function Page() {
                             { key: "assignee", label: "Assignee", pinned: false },
                             { key: "tags", label: "Tags", pinned: false },
                             { key: "dueDate", label: "Due date", pinned: false },
-                            { key: "progress", label: "Progress", pinned: false },
-                            { key: "department", label: "Department", pinned: false },
-                            { key: "type", label: "Type", pinned: false },
                             { key: "clientInfo", label: "Client info", pinned: false },
                             { key: "description", label: "Description", pinned: false },
                           ].filter(f => f.label.toLowerCase().includes(settingsSearch.toLowerCase())).map((field, idx) => (
@@ -165,6 +165,12 @@ export default function Page() {
                                   }));
                                 }}
                               />
+                            </div>
+                          ))}
+                          {CARD_FIELDS.filter(f => !f.pinned && ["attachments","comments"].includes(f.key)).map((field, idx) => (
+                            <div key={field.key} className="flex items-center justify-between py-1">
+                              <span className="text-[15px] text-[#1c2024]">{field.label}</span>
+                              <Switch checked={cardFields[field.key]} onCheckedChange={v => setCardFields({ ...cardFields, [field.key]: v })} />
                             </div>
                           ))}
                         </div>
@@ -213,36 +219,172 @@ export default function Page() {
 
 function CreateTaskModal({ open, onOpenChange, defaultStatus }: { open: boolean, onOpenChange: (v: boolean) => void, defaultStatus?: string }) {
   const [status, setStatus] = useState(defaultStatus || "To do");
+  const [name, setName] = useState("");
+  const [workspace, setWorkspace] = useState("");
+  const [category, setCategory] = useState("");
+  const [assignee, setAssignee] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [priority, setPriority] = useState("");
+  const [project, setProject] = useState("");
+  const [needsAttention, setNeedsAttention] = useState(false);
+  const [description, setDescription] = useState("");
+  const [touched, setTouched] = useState<{[k:string]:boolean}>({});
   useEffect(() => { setStatus(defaultStatus || "To do"); }, [defaultStatus]);
+  const required = { name, workspace, category };
+  const hasError = (field: string) => {
+    if (field === 'name') return touched.name && !name;
+    if (field === 'workspace') return touched.workspace && !workspace;
+    if (field === 'category') return touched.category && !category;
+    return false;
+  };
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setTouched({ name: true, workspace: true, category: true });
+    if (!name || !workspace || !category) return;
+    // TODO: handle create
+    onOpenChange(false);
+  }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create new task</DialogTitle>
-        </DialogHeader>
-        <form className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Status</label>
-            <select
-              className="w-full border rounded px-2 py-1"
-              value={status}
-              onChange={e => setStatus(e.target.value)}
-              disabled={!!defaultStatus}
-            >
-              <option value="To do">To do</option>
-              <option value="In Progress">In progress</option>
-            </select>
+      <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-2xl">
+        <form onSubmit={handleSubmit} className="flex flex-col h-full">
+          {/* Header */}
+          <div className="border-b border-[#e8e8ec] px-8 pt-8 pb-4 flex flex-col gap-2">
+            <div className="text-xs text-[#8b8d98] mb-1">All tasks / New task</div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold text-[#1c2024]">Create new task</h2>
+              <div className="flex items-center gap-3">
+                <Avatar>
+                  <AvatarImage src="https://randomuser.me/api/portraits/men/32.jpg" />
+                  <AvatarFallback>JD</AvatarFallback>
+                </Avatar>
+                <Button type="button" variant="outline" size="sm" className="gap-1 px-3 py-1.5 text-sm">
+                  <ShareIcon className="w-4 h-4" /> Share
+                </Button>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Task name</label>
-            <input className="w-full border rounded px-2 py-1" placeholder="Enter task name" />
+          {/* Main content */}
+          <div className="flex flex-1 min-h-0">
+            {/* Left: Form */}
+            <div className="flex-1 px-8 py-8 overflow-y-auto">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="rounded-lg bg-[#f4f4f7] w-12 h-12 flex items-center justify-center text-[#8b8d98]">
+                  <User className="w-7 h-7" />
+                </div>
+                <Input
+                  className={`text-xl font-medium border-0 shadow-none bg-transparent focus:ring-0 focus-visible:ring-0 placeholder:text-[#b0b3bb] ${hasError("name") ? "border-red-500" : ""}`}
+                  placeholder="Enter tasks name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  onBlur={() => setTouched(t => ({...t, name:true}))}
+                />
+              </div>
+              <div className="text-sm font-semibold text-[#1c2024] mb-2">Details</div>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4 max-w-2xl">
+                {/* Status */}
+                <div>
+                  <Label className="mb-1">Status</Label>
+                  <div className="px-3 py-1.5 rounded bg-[#f4f4f7] text-[#1c2024] text-sm font-medium w-fit">{status}</div>
+                </div>
+                {/* Workspace */}
+                <div>
+                  <Label className="mb-1">Workspace <span className="text-red-500">*</span></Label>
+                  <select
+                    className={`w-full border rounded px-2 py-1.5 text-sm bg-white ${hasError("workspace") ? "border-red-500" : ""}`}
+                    value={workspace}
+                    onChange={e => setWorkspace(e.target.value)}
+                    onBlur={() => setTouched(t => ({...t, workspace:true}))}
+                  >
+                    <option value="">Select workspace</option>
+                    <option value="Default">Default</option>
+                  </select>
+                </div>
+                {/* Category */}
+                <div>
+                  <Label className="mb-1">Category <span className="text-red-500">*</span></Label>
+                  <select
+                    className={`w-full border rounded px-2 py-1.5 text-sm bg-white ${hasError("category") ? "border-red-500" : ""}`}
+                    value={category}
+                    onChange={e => setCategory(e.target.value)}
+                    onBlur={() => setTouched(t => ({...t, category:true}))}
+                  >
+                    <option value="">Select category</option>
+                    <option value="Capital Projects">Capital Projects</option>
+                  </select>
+                </div>
+                {/* Assignee */}
+                <div>
+                  <Label className="mb-1">Assignee</Label>
+                  <select
+                    className="w-full border rounded px-2 py-1.5 text-sm bg-white"
+                    value={assignee}
+                    onChange={e => setAssignee(e.target.value)}
+                  >
+                    <option value="">Select assignee</option>
+                    <option value="Marley Bergson">Marley Bergson</option>
+                  </select>
+                </div>
+                {/* Due date */}
+                <div>
+                  <Label className="mb-1">Due date</Label>
+                  <Input type="date" className="w-full border rounded px-2 py-1.5 text-sm bg-white" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+                </div>
+                {/* Priority */}
+                <div>
+                  <Label className="mb-1">Priority</Label>
+                  <select
+                    className="w-full border rounded px-2 py-1.5 text-sm bg-white"
+                    value={priority}
+                    onChange={e => setPriority(e.target.value)}
+                  >
+                    <option value="">Select priority</option>
+                    <option value="Normal">Normal</option>
+                    <option value="High">High</option>
+                    <option value="Emergency">Emergency</option>
+                  </select>
+                </div>
+                {/* Project */}
+                <div>
+                  <Label className="mb-1">Project</Label>
+                  <select
+                    className="w-full border rounded px-2 py-1.5 text-sm bg-white"
+                    value={project}
+                    onChange={e => setProject(e.target.value)}
+                  >
+                    <option value="">Select project</option>
+                  </select>
+                </div>
+                {/* Needs attention */}
+                <div className="flex items-center gap-2 mt-6">
+                  <Checkbox id="needsAttention" checked={needsAttention} onCheckedChange={v => setNeedsAttention(!!v)} />
+                  <Label htmlFor="needsAttention" className="text-sm">Impacts client</Label>
+                </div>
+              </div>
+              {/* Description */}
+              <div className="mt-6">
+                <Label className="mb-1">Description</Label>
+                <textarea
+                  className="w-full border rounded px-3 py-2 text-sm bg-white min-h-[60px] resize-y mt-1"
+                  placeholder="Start typing..."
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                />
+              </div>
+            </div>
+            {/* Right: Add to task */}
+            <div className="w-80 bg-[#fafbfc] border-l border-[#e8e8ec] flex flex-col p-8">
+              <div className="text-sm font-semibold text-[#1c2024] mb-4">Add to task</div>
+              <Button type="button" variant="outline" className="w-full justify-start gap-2 mb-2">
+                <Paperclip className="w-4 h-4" /> Attachment
+              </Button>
+              {/* Додаткові кнопки можна додати тут */}
+            </div>
           </div>
-          {/* Add other fields as needed */}
-          <div className="flex justify-end gap-2 pt-4">
-            <DialogClose asChild>
-              <button type="button" className="px-4 py-2 rounded border">Cancel</button>
-            </DialogClose>
-            <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white">Create</button>
+          {/* Footer */}
+          <div className="flex items-center justify-between border-t border-[#e8e8ec] px-8 py-4 bg-white">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="text-[#60646c]">Cancel</Button>
+            <Button type="submit" className="bg-[#0034dc] hover:bg-[#004fc7] text-white px-8">Create</Button>
           </div>
         </form>
       </DialogContent>

@@ -357,6 +357,10 @@ export default function KanbanBoard({
 
   // Card rendering
   function renderCard(task: any, isSubtask = false) {
+    const showSubtasks = cardFields.subtasks && task.subtasks && task.subtasks.length > 0;
+    const showAttachments = cardFields.attachments;
+    const showComments = cardFields.comments;
+    const isSimple = !showSubtasks && !showAttachments && !showComments;
     return (
       <Draggable key={task.id} draggableId={task.id} index={parseInt(task.id.replace(/\D/g, ""))}>
         {(provided, snapshot) => (
@@ -367,7 +371,7 @@ export default function KanbanBoard({
             className={`mb-3 ${isSubtask ? "ml-6" : ""}`}
           >
             <Card className="border-[#e8e8ec] rounded-2xl shadow-none">
-              <CardContent className="p-6">
+              <CardContent className={`${isSimple ? "p-4" : "p-6"}`}>
                 {/* ID */}
                 {cardFields.taskId && (
                   <div className="text-xs font-semibold text-[#60646c] mb-1">{task.taskId}</div>
@@ -422,7 +426,7 @@ export default function KanbanBoard({
                 {/* Bottom row: Subtasks, Attachments, Comments */}
                 <div className="flex items-center gap-2">
                   {/* Subtask count as button */}
-                  {cardFields.subtasks && task.subtasks && task.subtasks.length > 0 && (
+                  {showSubtasks && (
                     <>
                       <button
                         type="button"
@@ -450,12 +454,16 @@ export default function KanbanBoard({
                       )}
                     </>
                   )}
-                  <span className="flex items-center gap-1 px-3 py-1 rounded-md bg-[#f3f3f3] text-sm text-[#60646c] ml-auto">
-                    <Paperclip className="w-4 h-4" />2
-                  </span>
-                  <span className="flex items-center gap-1 px-3 py-1 rounded-md bg-[#f3f3f3] text-sm text-[#60646c]">
-                    <MessageCircle className="w-4 h-4" />2
-                  </span>
+                  {showAttachments && (
+                    <span className="flex items-center gap-1 px-3 py-1 rounded-md bg-[#f3f3f3] text-sm text-[#60646c] ml-auto">
+                      <Paperclip className="w-4 h-4" />2
+                    </span>
+                  )}
+                  {showComments && (
+                    <span className="flex items-center gap-1 px-3 py-1 rounded-md bg-[#f3f3f3] text-sm text-[#60646c]">
+                      <MessageCircle className="w-4 h-4" />2
+                    </span>
+                  )}
                 </div>
               </CardContent>
             </Card>
