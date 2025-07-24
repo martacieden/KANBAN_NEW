@@ -32,6 +32,7 @@ export default function Page() {
     { key: "progress", label: "Progress", pinned: false },
     { key: "department", label: "Department", pinned: false },
     { key: "type", label: "Type", pinned: false },
+    { key: "organization", label: "Organization", pinned: false },
     { key: "clientInfo", label: "Client info", pinned: false },
     { key: "description", label: "Description", pinned: false },
     { key: "attachments", label: "Attachments", pinned: false },

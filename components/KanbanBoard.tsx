@@ -472,6 +472,7 @@ const CARD_FIELDS = [
   { key: "progress", label: "Progress", pinned: true },
   { key: "department", label: "Department", pinned: true },
   { key: "type", label: "Type", pinned: true },
+  { key: "organization", label: "Organization", pinned: false },
   { key: "clientInfo", label: "Client info", pinned: true },
   { key: "description", label: "Description", pinned: true },
 ];
@@ -678,19 +679,21 @@ export default function KanbanBoard({
                 {cardFields.description && task.description && (
                   <div className="text-sm text-[#8b8d98] mb-2 line-clamp-3">{task.description}</div>
                 )}
-                {/* Org + Avatars */}
-                {(cardFields.organization || cardFields.assignee) && (
+                {/* Org + Avatars - не показувати організацію для підзадач */}
+                {((cardFields.organization && !isSubtask) || cardFields.assignee) && (
                   <div className="flex items-center justify-between mb-1">
-                    {/* Org logo and organization - invisible but takes space when hidden */}
-                    <div className={`flex items-center gap-2 ${cardFields.organization ? '' : 'invisible'}`}>
-                      <span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 via-pink-400 to-purple-400 flex items-center justify-center">
-                        <span className="sr-only">Org</span>
-                      </span>
-                      <span className="text-sm text-[#1c2024] font-medium mr-2">{task.clientInfo}</span>
-                    </div>
+                    {/* Org logo and organization - приховано для підзадач */}
+                    {!isSubtask && (
+                      <div className={`flex items-center gap-2 ${cardFields.organization ? '' : 'invisible'}`}>
+                        <span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 via-pink-400 to-purple-400 flex items-center justify-center">
+                          <span className="sr-only">Org</span>
+                        </span>
+                        <span className="text-sm text-[#1c2024] font-medium mr-2">{task.clientInfo}</span>
+                      </div>
+                    )}
                     {/* Assignee avatars - aligned to the right */}
                     {cardFields.assignee && task.teamMembers && (
-                      <div className="flex -space-x-2">
+                      <div className={`flex -space-x-2 ${isSubtask ? 'ml-0' : 'ml-auto'}`}>
                         {task.teamMembers.slice(0, 3).map((member: any, index: number) => (
                           <img key={index} src={member.avatarUrl} alt={member.name} className="w-6 h-6 rounded-full border-2 border-white" />
                         ))}
