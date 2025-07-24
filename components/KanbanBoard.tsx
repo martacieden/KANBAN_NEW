@@ -773,29 +773,31 @@ export default function KanbanBoard({
     <TooltipProvider>
       <div className="flex flex-col h-full w-full">
         {/* Kanban scroll area with padding */}
-        <div className="flex-1 px-6 pt-6 pb-4">
+        <div className="flex-1 px-3 pt-3 pb-3">
             <style>{`
               .kanban-scrollbar {
-                scrollbar-width: thin;
-                scrollbar-color: #d1d5db #fff0;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
               }
               .kanban-scrollbar::-webkit-scrollbar {
-                width: 8px;
-                background: transparent;
-                opacity: 0;
-              }
-              .kanban-scrollbar::-webkit-scrollbar-thumb {
-                background: #d1d5db;
-                border-radius: 8px;
-                opacity: 0;
-                transition: opacity 0.2s;
+                display: none;
               }
               .kanban-scroll-hover .kanban-scrollbar {
                 overflow-x: auto !important;
+                scrollbar-width: thin;
+                scrollbar-color: #d1d5db transparent;
               }
-              .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar,
+              .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar {
+                display: block;
+                height: 8px;
+                background: transparent;
+              }
               .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar-thumb {
-                opacity: 1;
+                background: #d1d5db;
+                border-radius: 8px;
+              }
+              .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
               }
             `}</style>
             <div
@@ -803,7 +805,7 @@ export default function KanbanBoard({
               onMouseEnter={e => e.currentTarget.classList.add('kanban-scroll-hover')}
               onMouseLeave={e => e.currentTarget.classList.remove('kanban-scroll-hover')}
             >
-              <div className="kanban-scrollbar flex gap-6 min-h-[600px] overflow-x-hidden" style={{overflowY: 'hidden', position: 'relative'}}>
+              <div className="kanban-scrollbar flex gap-3 min-h-[700px] overflow-x-hidden hover:overflow-x-auto" style={{overflowY: 'hidden', position: 'relative'}}>
                 <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
                   {STATUSES.map((column) => {
                     const columnTasks = getColumnTasks(column.id);
@@ -851,7 +853,7 @@ export default function KanbanBoard({
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className={`flex flex-col min-w-[420px] max-w-[520px] h-[calc(100vh-220px)] rounded-lg border p-0 transition-opacity relative ${
+                          className={`flex flex-col min-w-[420px] max-w-[520px] h-[calc(100vh-160px)] rounded-lg border p-0 transition-opacity relative ${
                             groupColor
                           } ${
                             isDropDisabled && draggedTask

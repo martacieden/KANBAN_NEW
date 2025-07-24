@@ -19,28 +19,60 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import TaskPreview from "../components/TaskPreview";
 
 export default function Page() {
-  // Define CARD_FIELDS array (without Category and Subtask count)
-  const CARD_FIELDS = [
+  // Define fields for Kanban cards
+  const KANBAN_CARD_FIELDS = [
     { key: "taskId", label: "ID", pinned: true },
     { key: "name", label: "Name", pinned: true },
-    { key: "organization", label: "Organization", pinned: false },
     { key: "priority", label: "Priority", pinned: false },
+    { key: "category", label: "Category", pinned: false },
     { key: "assignee", label: "Assignee", pinned: false },
+    { key: "subtasks", label: "Subtask count", pinned: false },
     { key: "tags", label: "Tags", pinned: false },
     { key: "dueDate", label: "Due date", pinned: false },
+    { key: "progress", label: "Progress", pinned: false },
+    { key: "department", label: "Department", pinned: false },
+    { key: "type", label: "Type", pinned: false },
     { key: "clientInfo", label: "Client info", pinned: false },
     { key: "description", label: "Description", pinned: false },
     { key: "attachments", label: "Attachments", pinned: false },
     { key: "comments", label: "Comments", pinned: false },
   ];
+
+  // Define fields for Table columns (more fields available)
+  const TABLE_COLUMN_FIELDS = [
+    { key: "taskId", label: "ID", pinned: true },
+    { key: "title", label: "Name", pinned: true },
+    { key: "priority", label: "Priority", pinned: false },
+    { key: "status", label: "Status", pinned: false },
+    { key: "category", label: "Category", pinned: false },
+    { key: "assignee", label: "Assignee", pinned: false },
+    { key: "dueDate", label: "Due date", pinned: false },
+    { key: "clientInfo", label: "Client info", pinned: false },
+    { key: "description", label: "Description", pinned: false },
+    { key: "organization", label: "Organization", pinned: false },
+    { key: "tags", label: "Tags", pinned: false },
+    { key: "progress", label: "Progress", pinned: false },
+    { key: "department", label: "Department", pinned: false },
+    { key: "type", label: "Type", pinned: false },
+    { key: "workspace", label: "Workspace", pinned: false },
+    { key: "createdAt", label: "Created", pinned: false },
+    { key: "updatedAt", label: "Updated", pinned: false },
+    { key: "attachments", label: "Attachments", pinned: false },
+    { key: "comments", label: "Comments", pinned: false },
+  ];
+  // Get current fields based on view
+  const getCurrentFields = () => view === 'kanban' ? KANBAN_CARD_FIELDS : TABLE_COLUMN_FIELDS;
+  
   // State for cardFields
   const [cardFields, setCardFields] = useState<Record<string, boolean>>(() => {
     const obj: Record<string, boolean> = {};
-    CARD_FIELDS.forEach(f => obj[f.key] = true);
+    // Initialize with all possible fields from both lists
+    [...KANBAN_CARD_FIELDS, ...TABLE_COLUMN_FIELDS].forEach(f => obj[f.key] = true);
     return obj;
   });
   const [showSettings, setShowSettings] = useState(false);
   const [settingsSearch, setSettingsSearch] = useState("");
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const taskCategories = [
     { name: "All tasks", count: 303, active: true },
     { name: "Budget", count: 99, active: false },
@@ -84,7 +116,7 @@ export default function Page() {
         <div className="sticky top-0 left-0 z-20 bg-white"><TopBar /></div>
         <div className="flex flex-1 min-h-0">
           {/* Tasks Panel - sticky */}
-          <div className="w-80 bg-[#ffffff] border-r border-[#e8e8ec] flex flex-col sticky top-[64px] left-0 z-10 h-[calc(100vh-64px)]">
+          <div className="w-64 bg-[#ffffff] border-r border-[#e8e8ec] flex flex-col sticky top-[64px] left-0 z-10 h-[calc(100vh-64px)]">
             <div className="flex-1 p-4 overflow-y-auto">
               <h3 className="text-lg font-semibold text-[#1c2024] mb-4">Tasks</h3>
               <div className="space-y-1">
@@ -117,9 +149,9 @@ export default function Page() {
             <div className="flex-1 flex flex-col min-w-0">
               {/* Filter/Search Bar Row - sticky */}
               <div className="sticky top-[64px] left-0 z-10 bg-white">
-                <div className="bg-[#ffffff] border-b border-[#e8e8ec] p-4">
+                <div className="bg-[#ffffff] border-b border-[#e8e8ec] py-2 px-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                       {/* Filters, View Setting, Search */}
                       <Button variant="ghost" size="sm" className="text-[#60646c]">
                         <Filter className="w-4 h-4 mr-2" />
@@ -129,7 +161,10 @@ export default function Page() {
                         <PopoverTrigger asChild>
                           <Button variant="outline" size="sm" className="text-[#1c2024]">
                             <Settings className="w-4 h-4 mr-2" />
-                            View setting
+                            {view === 'list' 
+                              ? `${getCurrentFields().filter(f => cardFields[f.key] !== false).length}/${getCurrentFields().length} columns`
+                              : 'View setting'
+                            }
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent align="start" className="w-80 p-4 rounded-2xl shadow-2xl border border-[#e8e8ec] bg-white mt-2">
@@ -155,7 +190,7 @@ export default function Page() {
                             ))}
                             <hr className="my-2 border-gray-200" />
                             {/* Regular fields */}
-                            {CARD_FIELDS.filter(f => !f.pinned && !["attachments","comments"].includes(f.key)).filter(f => f.label.toLowerCase().includes(settingsSearch.toLowerCase())).map((field, idx) => (
+                            {getCurrentFields().filter(f => !f.pinned && !["attachments","comments"].includes(f.key)).filter(f => f.label.toLowerCase().includes(settingsSearch.toLowerCase())).map((field, idx) => (
                               <div key={field.key} className="flex items-center justify-between py-1">
                                 <span className="text-[15px] text-[#1c2024]">{field.label}</span>
                                 <Switch
@@ -169,7 +204,7 @@ export default function Page() {
                                 />
                               </div>
                             ))}
-                            {CARD_FIELDS.filter(f => !f.pinned && ["attachments","comments"].includes(f.key)).map((field, idx) => (
+                            {getCurrentFields().filter(f => !f.pinned && ["attachments","comments"].includes(f.key)).map((field, idx) => (
                               <div key={field.key} className="flex items-center justify-between py-1">
                                 <span className="text-[15px] text-[#1c2024]">{field.label}</span>
                                 <Switch checked={cardFields[field.key]} onCheckedChange={v => setCardFields({ ...cardFields, [field.key]: v })} />
@@ -180,7 +215,7 @@ export default function Page() {
                             className="mt-6 w-full py-2 rounded-md border border-[#e8e8ec] bg-[#f9f9fb] text-[#1c2024] font-medium hover:bg-[#f4f4f7]"
                             onClick={() => setCardFields(() => {
                               const obj: Record<string, boolean> = {};
-                              CARD_FIELDS.forEach(f => obj[f.key] = true);
+                              getCurrentFields().forEach(f => obj[f.key] = true);
                               return obj;
                             })}
                           >
@@ -244,6 +279,7 @@ export default function Page() {
                   tasks={kanbanInitialTasks}
                   cardFields={cardFields}
                   onTaskClick={setSelectedTask}
+                  tableFields={TABLE_COLUMN_FIELDS}
                 />
               )}
             </div>
@@ -437,19 +473,9 @@ function CreateTaskModal({ open, onOpenChange, defaultStatus }: { open: boolean,
   );
 }
 
-function TaskTable({ tasks, cardFields, onTaskClick }: { tasks: any[], cardFields: Record<string, boolean>, onTaskClick: (task: any) => void }) {
+function TaskTable({ tasks, cardFields, onTaskClick, tableFields }: { tasks: any[], cardFields: Record<string, boolean>, onTaskClick: (task: any) => void, tableFields: any[] }) {
   // Визначаємо, які колонки показувати
-  const columns = [
-    { key: "title", label: "Name" },
-    { key: "taskId", label: "ID" },
-    { key: "priority", label: "Priority" },
-    { key: "status", label: "Status" },
-    { key: "category", label: "Category" },
-    { key: "assignee", label: "Assignee" },
-    { key: "dueDate", label: "Due date" },
-    { key: "clientInfo", label: "Client info" },
-    { key: "description", label: "Description" },
-  ].filter(col => cardFields[col.key] !== false || col.key === "title");
+  const columns = tableFields.filter(col => cardFields[col.key] !== false || col.key === "title");
 
   // Мапа для статусів (кольори як у Kanban)
   const statusColors: Record<string, string> = {
