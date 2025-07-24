@@ -463,17 +463,12 @@ const statusColorMap = Object.fromEntries(
 
 const CARD_FIELDS = [
   { key: "taskId", label: "Task ID", pinned: true },
+  { key: "organization", label: "Organization", pinned: false },
   { key: "priority", label: "Priority", pinned: true },
   { key: "category", label: "Category", pinned: true },
   { key: "assignee", label: "Assignee", pinned: true },
-  { key: "subtasks", label: "Subtask count", pinned: true },
   { key: "tags", label: "Tags", pinned: true },
   { key: "dueDate", label: "Due date", pinned: true },
-  { key: "progress", label: "Progress", pinned: true },
-  { key: "department", label: "Department", pinned: true },
-  { key: "type", label: "Type", pinned: true },
-  { key: "organization", label: "Organization", pinned: false },
-  { key: "clientInfo", label: "Client info", pinned: true },
   { key: "description", label: "Description", pinned: true },
 ];
 
@@ -597,7 +592,7 @@ export default function KanbanBoard({
 
   // Card rendering
   function renderCard(task: any, isSubtask = false) {
-    const showSubtasks = cardFields.subtasks && task.subtasks && task.subtasks.length > 0;
+    const showSubtasks = task.subtasks && task.subtasks.length > 0;
     const showAttachments = cardFields.attachments;
     const showComments = cardFields.comments;
     const isSimple = !showSubtasks && !showAttachments && !showComments;
