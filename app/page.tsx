@@ -2,8 +2,8 @@
 
 import Sidebar from "../components/sidebar";
 import TopBar from "../components/topbar";
-import KanbanBoard from "../components/KanbanBoard";
-import { Plus, ChevronDown, ChevronRight, Filter, Settings, Share, Bell, Search } from "lucide-react";
+import KanbanBoard, { initialTasks as kanbanInitialTasks } from "../components/KanbanBoard";
+import { Plus, ChevronDown, ChevronRight, Filter, Settings, Share, Bell, Search, List, Kanban, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -15,13 +15,15 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Paperclip, User, Share as ShareIcon } from "lucide-react";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import TaskPreview from "../components/TaskPreview";
 
 export default function Page() {
   // Define CARD_FIELDS array (without Category and Subtask count)
   const CARD_FIELDS = [
     { key: "taskId", label: "ID", pinned: true },
     { key: "name", label: "Name", pinned: true },
-    { key: "organization", label: "Organization", pinned: true },
+    { key: "organization", label: "Organization", pinned: false },
     { key: "priority", label: "Priority", pinned: false },
     { key: "assignee", label: "Assignee", pinned: false },
     { key: "tags", label: "Tags", pinned: false },
@@ -65,6 +67,14 @@ export default function Page() {
     window.addEventListener("openCreateTaskModal", handler);
     return () => window.removeEventListener("openCreateTaskModal", handler);
   }, []);
+  const [view, setView] = useState<'kanban' | 'list'>('kanban');
+  const [selectedTask, setSelectedTask] = useState<any | null>(null);
+
+  // Закривати прев'ю при зміні view
+  useEffect(() => {
+    setSelectedTask(null);
+  }, [view]);
+
   return (
     <div className="flex h-screen bg-[#fcfcfd]">
       {/* Sidebar - fixed */}
@@ -102,115 +112,150 @@ export default function Page() {
               </Button>
             </div>
           </div>
-          {/* Kanban Board */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Filter/Search Bar Row - sticky */}
-            <div className="sticky top-[64px] left-0 z-10 bg-white">
-              <div className="bg-[#ffffff] border-b border-[#e8e8ec] p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {/* Removed counter badge from filter bar */}
-                    <Button variant="ghost" size="sm" className="text-[#60646c]">
-                      <Filter className="w-4 h-4 mr-2" />
-                      Filters
-                    </Button>
-                    {/* View Setting button triggers KanbanBoard popover */}
-                    <Popover open={showSettings} onOpenChange={setShowSettings}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="text-[#1c2024]">
-                          <Settings className="w-4 h-4 mr-2" />
-                          View setting
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent align="start" className="w-80 p-4 rounded-2xl shadow-2xl border border-[#e8e8ec] bg-white mt-2">
-                        <div className="relative mb-4">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                          <Input
-                            placeholder="Search"
-                            className="pl-10 bg-[#f9f9fb] border-[#e8e8ec]"
-                            value={settingsSearch}
-                            onChange={e => setSettingsSearch(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          {/* Pinned fields */}
-                          {[
-                            { key: "taskId", label: "ID", pinned: true },
-                            { key: "name", label: "Name", pinned: true },
-                            { key: "organization", label: "Organization", pinned: true },
-                          ].filter(f => f.label.toLowerCase().includes(settingsSearch.toLowerCase())).map((field, idx) => (
-                            <div key={field.key} className="flex items-center justify-between py-1">
-                              <span className="text-[15px] text-[#1c2024]">{field.label}</span>
-                              <Switch checked disabled={true} />
-                            </div>
-                          ))}
-                          <hr className="my-2 border-gray-200" />
-                          {/* Regular fields */}
-                          {[
-                            { key: "priority", label: "Priority", pinned: false },
-                            { key: "assignee", label: "Assignee", pinned: false },
-                            { key: "tags", label: "Tags", pinned: false },
-                            { key: "dueDate", label: "Due date", pinned: false },
-                            { key: "clientInfo", label: "Client info", pinned: false },
-                            { key: "description", label: "Description", pinned: false },
-                          ].filter(f => f.label.toLowerCase().includes(settingsSearch.toLowerCase())).map((field, idx) => (
-                            <div key={field.key} className="flex items-center justify-between py-1">
-                              <span className="text-[15px] text-[#1c2024]">{field.label}</span>
-                              <Switch
-                                checked={cardFields[field.key]}
-                                onCheckedChange={() => {
-                                  setCardFields(prev => ({
-                                    ...prev,
-                                    [field.key]: !prev[field.key]
-                                  }));
-                                }}
-                              />
-                            </div>
-                          ))}
-                          {CARD_FIELDS.filter(f => !f.pinned && ["attachments","comments"].includes(f.key)).map((field, idx) => (
-                            <div key={field.key} className="flex items-center justify-between py-1">
-                              <span className="text-[15px] text-[#1c2024]">{field.label}</span>
-                              <Switch checked={cardFields[field.key]} onCheckedChange={v => setCardFields({ ...cardFields, [field.key]: v })} />
-                            </div>
-                          ))}
-                        </div>
-                        <button
-                          className="mt-6 w-full py-2 rounded-md border border-[#e8e8ec] bg-[#f9f9fb] text-[#1c2024] font-medium hover:bg-[#f4f4f7]"
-                          onClick={() => setCardFields(() => {
-                            const obj: Record<string, boolean> = {};
-                            CARD_FIELDS.forEach(f => obj[f.key] = true);
-                            return obj;
-                          })}
-                        >
-                          Reset to default
-                        </button>
-                      </PopoverContent>
-                    </Popover>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#8b8d98] w-4 h-4" />
-                      <Input placeholder="Search" className="pl-10 w-48 bg-[#f9f9fb] border-[#e8e8ec]" />
+          {/* Kanban Board / Grid View + TaskPreview */}
+          <div className="flex-1 flex flex-row min-w-0">
+            <div className="flex-1 flex flex-col min-w-0">
+              {/* Filter/Search Bar Row - sticky */}
+              <div className="sticky top-[64px] left-0 z-10 bg-white">
+                <div className="bg-[#ffffff] border-b border-[#e8e8ec] p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {/* Filters, View Setting, Search */}
+                      <Button variant="ghost" size="sm" className="text-[#60646c]">
+                        <Filter className="w-4 h-4 mr-2" />
+                        Filters
+                      </Button>
+                      <Popover open={showSettings} onOpenChange={setShowSettings}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="text-[#1c2024]">
+                            <Settings className="w-4 h-4 mr-2" />
+                            View setting
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="start" className="w-80 p-4 rounded-2xl shadow-2xl border border-[#e8e8ec] bg-white mt-2">
+                          <div className="relative mb-4">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Input
+                              placeholder="Search"
+                              className="pl-10 bg-[#f9f9fb] border-[#e8e8ec]"
+                              value={settingsSearch}
+                              onChange={e => setSettingsSearch(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            {/* Pinned fields */}
+                            {[
+                              { key: "taskId", label: "ID", pinned: true },
+                              { key: "name", label: "Name", pinned: true },
+                            ].filter(f => f.label.toLowerCase().includes(settingsSearch.toLowerCase())).map((field, idx) => (
+                              <div key={field.key} className="flex items-center justify-between py-1">
+                                <span className="text-[15px] text-[#1c2024]">{field.label}</span>
+                                <Switch checked disabled={true} />
+                              </div>
+                            ))}
+                            <hr className="my-2 border-gray-200" />
+                            {/* Regular fields */}
+                            {CARD_FIELDS.filter(f => !f.pinned && !["attachments","comments"].includes(f.key)).filter(f => f.label.toLowerCase().includes(settingsSearch.toLowerCase())).map((field, idx) => (
+                              <div key={field.key} className="flex items-center justify-between py-1">
+                                <span className="text-[15px] text-[#1c2024]">{field.label}</span>
+                                <Switch
+                                  checked={cardFields[field.key]}
+                                  onCheckedChange={() => {
+                                    setCardFields(prev => ({
+                                      ...prev,
+                                      [field.key]: !prev[field.key]
+                                    }));
+                                  }}
+                                />
+                              </div>
+                            ))}
+                            {CARD_FIELDS.filter(f => !f.pinned && ["attachments","comments"].includes(f.key)).map((field, idx) => (
+                              <div key={field.key} className="flex items-center justify-between py-1">
+                                <span className="text-[15px] text-[#1c2024]">{field.label}</span>
+                                <Switch checked={cardFields[field.key]} onCheckedChange={v => setCardFields({ ...cardFields, [field.key]: v })} />
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            className="mt-6 w-full py-2 rounded-md border border-[#e8e8ec] bg-[#f9f9fb] text-[#1c2024] font-medium hover:bg-[#f4f4f7]"
+                            onClick={() => setCardFields(() => {
+                              const obj: Record<string, boolean> = {};
+                              CARD_FIELDS.forEach(f => obj[f.key] = true);
+                              return obj;
+                            })}
+                          >
+                            Reset to default
+                          </button>
+                        </PopoverContent>
+                      </Popover>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#8b8d98] w-4 h-4" />
+                        <Input placeholder="Search" className="pl-10 w-48 bg-[#f9f9fb] border-[#e8e8ec]" />
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="text-[#60646c]">
-                      <Share className="w-4 h-4 mr-2" />
-                      Share
-                    </Button>
-                    <Button variant="ghost" size="sm" className="text-[#60646c]">
-                      Actions
-                    </Button>
-                    <Button onClick={() => { setModalStatus(undefined); setShowCreateModal(true); }}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      New task
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {/* View Switcher */}
+                      <div className="flex items-center gap-1 mr-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={view === 'list' ? 'bg-[#0034dc] text-white' : 'text-[#8b8d98]'}
+                          onClick={() => setView('list')}
+                          aria-label="List view"
+                        >
+                          <List className="w-5 h-5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={view === 'kanban' ? 'bg-[#0034dc] text-white' : 'text-[#8b8d98]'}
+                          onClick={() => setView('kanban')}
+                          aria-label="Kanban view"
+                        >
+                          <Kanban className="w-5 h-5" />
+                        </Button>
+                      </div>
+                      <Button variant="ghost" size="sm" className="text-[#60646c]">
+                        <Share className="w-4 h-4 mr-2" />
+                        Share
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-[#60646c]">
+                        Actions
+                      </Button>
+                      <Button onClick={() => { setModalStatus(undefined); setShowCreateModal(true); }} className="bg-[#0034dc] hover:bg-[#004fc7] text-white px-5">
+                        <Plus className="w-4 h-4 mr-2" />
+                        New task
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
+              {/* Pass cardFields and setCardFields to KanbanBoard */}
+              {view === 'kanban' ? (
+                <KanbanBoard
+                  showSettings={showSettings}
+                  setShowSettings={setShowSettings}
+                  cardFields={cardFields}
+                  setCardFields={setCardFields}
+                  onTaskClick={setSelectedTask}
+                />
+              ) : (
+                <TaskTable
+                  tasks={kanbanInitialTasks}
+                  cardFields={cardFields}
+                  onTaskClick={setSelectedTask}
+                />
+              )}
             </div>
-            {/* Pass cardFields and setCardFields to KanbanBoard */}
-            <KanbanBoard showSettings={showSettings} setShowSettings={setShowSettings} cardFields={cardFields} setCardFields={setCardFields} />
+            {/* Видаляю TaskPreview з flex-контейнера */}
           </div>
         </div>
+        {/* Оверлей прев'ю */}
+        {selectedTask && (
+          <div className="fixed top-[64px] right-0 bottom-0 w-[420px] z-50 shadow-2xl bg-white border-l border-[#e8e8ec]">
+            <TaskPreview task={selectedTask} onClose={() => setSelectedTask(null)} />
+          </div>
+        )}
       </div>
       <CreateTaskModal open={showCreateModal} onOpenChange={setShowCreateModal} defaultStatus={modalStatus} />
     </div>
@@ -389,5 +434,77 @@ function CreateTaskModal({ open, onOpenChange, defaultStatus }: { open: boolean,
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function TaskTable({ tasks, cardFields, onTaskClick }: { tasks: any[], cardFields: Record<string, boolean>, onTaskClick: (task: any) => void }) {
+  // Визначаємо, які колонки показувати
+  const columns = [
+    { key: "title", label: "Name" },
+    { key: "taskId", label: "ID" },
+    { key: "priority", label: "Priority" },
+    { key: "status", label: "Status" },
+    { key: "category", label: "Category" },
+    { key: "assignee", label: "Assignee" },
+    { key: "dueDate", label: "Due date" },
+    { key: "clientInfo", label: "Client info" },
+    { key: "description", label: "Description" },
+  ].filter(col => cardFields[col.key] !== false || col.key === "title");
+
+  // Мапа для статусів (кольори як у Kanban)
+  const statusColors: Record<string, string> = {
+    "To do": "bg-blue-100 text-blue-700",
+    "In Progress": "bg-yellow-100 text-yellow-700",
+    "Needs Work": "bg-orange-100 text-orange-700",
+    "Verified": "bg-green-100 text-green-700",
+    "Acknowledged": "bg-cyan-100 text-cyan-700",
+    "Paused": "bg-gray-100 text-gray-700",
+    "Blocked": "bg-red-100 text-red-700",
+    "Done": "bg-emerald-100 text-emerald-700",
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-[#e8e8ec] mt-4">
+      <Table>
+        <TableHeader>
+          <TableRow className="sticky top-0 bg-white z-10">
+            {columns.map(col => (
+              <TableHead key={col.key} className="py-2 px-3 text-xs font-semibold text-[#8b8d98]">{col.label}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {tasks.map((task, idx) => (
+            <TableRow key={task.id || idx} onClick={() => onTaskClick(task)} className="cursor-pointer">
+              {columns.map(col => (
+                <TableCell key={col.key} className="py-2 px-3">
+                  {col.key === "assignee" && task.assignee ? (
+                    <div className="flex items-center gap-2">
+                      <Avatar className="w-6 h-6">
+                        <AvatarImage src={task.assignee.avatarUrl || "https://randomuser.me/api/portraits/men/32.jpg"} />
+                        <AvatarFallback className="text-xs">{task.assignee.initials}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">{task.assignee.name}</span>
+                    </div>
+                  ) : col.key === "priority" ? (
+                    <span className="flex items-center gap-1">
+                      {task.priority === "Normal" && <Layers className="w-4 h-4 text-[#0034dc]" />}
+                      {(task.priority === "High" || task.priority === "Emergency") && <ChevronDown className="w-4 h-4 text-[#e5484d] rotate-180" />}
+                      <span className={`text-sm font-medium ${task.priority === "Emergency" || task.priority === "High" ? "text-[#e5484d]" : task.priority === "Low" ? "text-[#8b8d98]" : "text-[#0034dc]"}`}>{task.priority || "Normal"}</span>
+                    </span>
+                  ) : col.key === "status" ? (
+                    <Badge className={`px-2 py-1 text-xs font-medium rounded ${statusColors[task.status] || "bg-gray-100 text-gray-700"}`}>{task.status}</Badge>
+                  ) : col.key === "description" ? (
+                    <span className="text-[#8b8d98] text-sm line-clamp-1">{task.description}</span>
+                  ) : (
+                    task[col.key] || ""
+                  )}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
