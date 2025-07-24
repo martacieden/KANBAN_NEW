@@ -168,7 +168,7 @@ export default function Page() {
                             }
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent align="start" className="w-80 p-4 rounded-2xl shadow-2xl border border-[#e8e8ec] bg-white mt-2">
+                        <PopoverContent align="start" className="w-80 p-4 rounded-2xl shadow-2xl border border-[#e8e8ec] bg-white mt-2 max-h-[70vh] flex flex-col">
                           <div className="relative mb-4">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                             <Input
@@ -178,7 +178,8 @@ export default function Page() {
                               onChange={e => setSettingsSearch(e.target.value)}
                             />
                           </div>
-                          <div className="space-y-2">
+                          {/* Scrollable content area */}
+                          <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
                             {/* Pinned fields */}
                             {[
                               { key: "taskId", label: "ID", pinned: true },
@@ -212,8 +213,9 @@ export default function Page() {
                               </div>
                             ))}
                           </div>
+                          {/* Reset button - fixed at bottom */}
                           <button
-                            className="mt-6 w-full py-2 rounded-md border border-[#e8e8ec] bg-[#f9f9fb] text-[#1c2024] font-medium hover:bg-[#f4f4f7]"
+                            className="mt-4 w-full py-2 rounded-md border border-[#e8e8ec] bg-[#f9f9fb] text-[#1c2024] font-medium hover:bg-[#f4f4f7] flex-shrink-0"
                             onClick={() => setCardFields(() => {
                               const obj: Record<string, boolean> = {};
                               getCurrentFields().forEach(f => obj[f.key] = true);
