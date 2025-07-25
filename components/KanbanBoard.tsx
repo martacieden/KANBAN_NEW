@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Settings, X, Search, ChevronLeft, ChevronUp, Clock, ChevronDown as ChevronDownIcon, Layers, Paperclip, MessageCircle, MoreHorizontal } from "lucide-react";
+import { ChevronDown, ChevronRight, Settings, X, Search, ChevronLeft, ChevronUp, Clock, ChevronDown as ChevronDownIcon, Layers, Paperclip, MessageCircle, MoreHorizontal, Flag } from "lucide-react";
 import { Paperclip as PaperclipIcon, MessageCircle as MessageCircleIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
@@ -764,9 +764,15 @@ export default function KanbanBoard({
                     <div className="flex items-center gap-2">
                       {/* Priority - invisible but takes space when hidden */}
                       <div className={`flex items-center gap-2 ${cardFields.priority ? '' : 'invisible'}`}>
-                        {task.priority === "Normal" && <Layers className="w-4 h-4 text-[#0034dc]" />}
-                        {task.priority === "High" && <ChevronDown className="w-4 h-4 text-[#e5484d] rotate-180" />}
-                        {task.priority === "Emergency" && <ChevronDown className="w-4 h-4 text-[#e5484d] rotate-180" />}
+                        {/* Unified Flag icon for all priorities with different colors */}
+                        <Flag 
+                          className={`w-4 h-4 ${
+                            task.priority === "Emergency" ? "text-[#e5484d]" : 
+                            task.priority === "High" ? "text-[#e5484d]" : 
+                            task.priority === "Low" ? "text-[#8b8d98]" : 
+                            "text-[#0034dc]"
+                          }`} 
+                        />
                         <span className={`text-sm font-medium ${task.priority === "Emergency" || task.priority === "High" ? "text-[#e5484d]" : task.priority === "Low" ? "text-[#8b8d98]" : "text-[#0034dc]"}`}>{task.priority || "Normal"}</span>
                       </div>
                     </div>
