@@ -42,7 +42,7 @@ export const metadata = {
       index: true,
       follow: true,
       'max-video-preview': -1,
-      'max-image-preview': 'large',
+      'max-image-preview': 'none',
       'max-snippet': -1,
     },
   },
@@ -62,6 +62,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta property="og:image" content="" />
         <meta name="twitter:image" content="" />
         <meta property="og:image:url" content="" />
+        <meta property="og:image:secure_url" content="" />
+        <meta name="twitter:image:src" content="" />
+        <meta property="article:author" content="" />
       </head>
       <body className={inter.className}>
         {children}

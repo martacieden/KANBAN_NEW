@@ -17,7 +17,7 @@ export default function TopBar() {
           <Bell size={20} className="text-gray-500" />
         </button>
         <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-          <img src="/placeholder-user.jpg" alt="User" className="w-full h-full object-cover" />
+          <img src="/placeholder-user.svg" alt="User" className="w-full h-full object-cover" />
         </div>
       </div>
     </header>
