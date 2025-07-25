@@ -20,14 +20,7 @@ export const metadata = {
     description: 'Professional task management system with Kanban board, team collaboration, and project tracking. Manage tasks efficiently with our intuitive interface.',
     url: 'https://task-management-chi-jade.vercel.app',
     siteName: 'WAY2B1 Task Management',
-    images: [
-      {
-        url: '/way2b1-preview.svg',
-        width: 1200,
-        height: 630,
-        alt: 'WAY2B1 Task Management Kanban Board - Professional project management interface',
-      }
-    ],
+
     locale: 'en_US',
     type: 'website',
   },
@@ -37,7 +30,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: 'WAY2B1 - Task Management & Kanban Board',
     description: 'Professional task management system with Kanban board, team collaboration, and project tracking. Manage tasks efficiently with our intuitive interface.',
-    images: ['/way2b1-preview.svg'],
+
     creator: '@WAY2B1',
   },
   
