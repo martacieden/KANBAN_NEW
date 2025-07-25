@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "../components/sidebar";
 import TopBar from "../components/topbar";
 import KanbanBoard, { initialTasks as kanbanInitialTasks } from "../components/KanbanBoard";
-import { Plus, ChevronDown, ChevronRight, Filter, Settings, Share, Bell, Search, List, Kanban, Layers, ChevronUp } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, Filter, Settings, Share, Bell, Search, List, Kanban, Layers, ChevronUp, Flag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -653,7 +653,7 @@ function TaskTable({ tasks, cardFields, onTaskClick, onTaskUpdate, tableFields, 
     const diff = e.clientX - startX;
     const newWidth = Math.max(50, startWidth + diff); // Мінімальна ширина 50px
     
-    setColumnWidths((prev: Record<string, number>): Record<string, number> => ({
+    setColumnWidths((prev: Record<string, number>) => ({
       ...prev,
       [resizingColumn]: newWidth
     }));
@@ -785,20 +785,15 @@ function TaskTable({ tasks, cardFields, onTaskClick, onTaskUpdate, tableFields, 
                       </div>
                     ) : col.key === "priority" ? (
                       <div className="flex items-center gap-2">
-                        {task.priority === "Emergency" && (
-                          <ChevronUp className="w-4 h-4 text-[#dc2626]" />
-                        )}
-                        {task.priority === "High" && (
-                          <ChevronUp className="w-4 h-4 text-[#f76808]" />
-                        )}
-                        {(task.priority === "Normal" || !task.priority) && (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-minus w-4 h-4 text-[#1150b8]">
-                            <path d="M5 12h14"></path>
-                          </svg>
-                        )}
-                        {task.priority === "Low" && (
-                          <ChevronDown className="w-4 h-4 text-[#16a34a]" />
-                        )}
+                        {/* Unified Flag icon for all priorities with different colors */}
+                        <Flag 
+                          className={`w-4 h-4 ${
+                            task.priority === "Emergency" ? "text-[#e5484d]" : 
+                            task.priority === "High" ? "text-[#e5484d]" : 
+                            task.priority === "Low" ? "text-[#8b8d98]" : 
+                            "text-[#0034dc]"
+                          }`} 
+                        />
                         <span className="text-[13px] font-normal leading-5 text-[#1c2024] truncate">{task.priority || "Normal"}</span>
                       </div>
                     ) : col.key === "status" ? (
