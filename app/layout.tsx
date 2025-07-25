@@ -8,24 +8,24 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
   metadataBase: new URL('https://task-management-chi-jade.vercel.app'),
-  title: 'Task Management System - Kanban Board',
-  description: 'Professional task management system with Kanban board view, task tracking, and team collaboration features.',
-  keywords: 'task management, kanban board, project management, team collaboration, productivity',
-  authors: [{ name: 'Task Management Team' }],
-  creator: 'Task Management System',
+  title: 'WAY2B1 - Task Management & Kanban Board',
+  description: 'Professional task management system with Kanban board, team collaboration, and project tracking. Manage tasks efficiently with our intuitive interface.',
+  keywords: 'task management, kanban board, project management, team collaboration, productivity, WAY2B1',
+  authors: [{ name: 'WAY2B1 Team' }],
+  creator: 'WAY2B1 Task Management',
   
   // Open Graph meta tags
   openGraph: {
-    title: 'Task Management System - Kanban Board',
-    description: 'Professional task management system with Kanban board view, task tracking, and team collaboration features.',
+    title: 'WAY2B1 - Task Management & Kanban Board',
+    description: 'Professional task management system with Kanban board, team collaboration, and project tracking. Manage tasks efficiently with our intuitive interface.',
     url: 'https://task-management-chi-jade.vercel.app',
-    siteName: 'Task Management System',
+    siteName: 'WAY2B1 Task Management',
     images: [
       {
-        url: '/kanban-preview.svg',
+        url: '/way2b1-preview.svg',
         width: 1200,
         height: 630,
-        alt: 'Task Management Kanban Board Preview',
+        alt: 'WAY2B1 Task Management Kanban Board - Professional project management interface',
       }
     ],
     locale: 'en_US',
@@ -35,10 +35,10 @@ export const metadata = {
   // Twitter Card meta tags
   twitter: {
     card: 'summary_large_image',
-    title: 'Task Management System - Kanban Board',
-    description: 'Professional task management system with Kanban board view, task tracking, and team collaboration features.',
-    images: ['/kanban-preview.svg'],
-    creator: '@taskmanagement',
+    title: 'WAY2B1 - Task Management & Kanban Board',
+    description: 'Professional task management system with Kanban board, team collaboration, and project tracking. Manage tasks efficiently with our intuitive interface.',
+    images: ['/way2b1-preview.svg'],
+    creator: '@WAY2B1',
   },
   
   // Additional meta tags
