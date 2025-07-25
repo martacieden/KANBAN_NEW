@@ -20,17 +20,17 @@ export const metadata = {
     description: 'Professional task management system with Kanban board, team collaboration, and project tracking. Manage tasks efficiently with our intuitive interface.',
     url: 'https://task-management-chi-jade.vercel.app',
     siteName: 'WAY2B1 Task Management',
-
+    images: [],
     locale: 'en_US',
     type: 'website',
   },
   
   // Twitter Card meta tags
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary',
     title: 'WAY2B1 - Task Management & Kanban Board',
     description: 'Professional task management system with Kanban board, team collaboration, and project tracking. Manage tasks efficiently with our intuitive interface.',
-
+    images: [],
     creator: '@WAY2B1',
   },
   
@@ -58,6 +58,11 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <meta property="og:image" content="" />
+        <meta name="twitter:image" content="" />
+        <meta property="og:image:url" content="" />
+      </head>
       <body className={inter.className}>
         {children}
         <StagewiseToolbar 
