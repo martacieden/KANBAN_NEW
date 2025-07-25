@@ -592,6 +592,7 @@ export default function KanbanBoard({
     // Find task or subtask
     let task = tasks.find((t) => t.id === draggableId);
     let isSubtask = false;
+    let parentTaskId = null;
     console.log('Found task:', task);
     if (!task) {
       for (const t of tasks) {
@@ -601,6 +602,7 @@ export default function KanbanBoard({
             // Inherit missing fields from parent for type safety
             task = { ...t, ...st };
             isSubtask = true;
+            parentTaskId = t.id;
             break;
           }
         }
@@ -611,6 +613,16 @@ export default function KanbanBoard({
       toast.error(`Cannot move task from ${task.status} to ${destination.droppableId}`);
       return;
     }
+
+    // Автоматично згортаємо сабтаски при переносі
+    if (isSubtask && parentTaskId) {
+      // Якщо переносимо сабтаск, згортаємо сабтаски батьківської таски
+      setExpandedSubtasks(prev => ({ ...prev, [parentTaskId]: false }));
+    } else if (!isSubtask && task.subtasks && task.subtasks.length > 0) {
+      // Якщо переносимо основну таску з сабтасками, згортаємо її сабтаски
+      setExpandedSubtasks(prev => ({ ...prev, [task.id]: false }));
+    }
+
     if (isSubtask) {
       setTasks(prev => prev.map(t => ({
         ...t,
@@ -666,41 +678,14 @@ export default function KanbanBoard({
                   : 'shadow-none hover:shadow-lg hover:shadow-black/15 hover:border-gray-300'
               }`}>
               <CardContent className={`${isSimple ? "p-3" : "p-4"} ${task.isSubtaskInFlat ? "bg-blue-50/30 border-l-4 border-l-blue-400" : ""}`}>
-                {/* Parent task indicator for subtasks in flat view */}
-                {task.isSubtaskInFlat && (
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-1 text-xs text-blue-600">
-                      <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                        <path d="M6 9l6 0" />
-                        <path d="M4 5l4 0" />
-                        <path d="M6 5v11a1 1 0 0 0 1 1h5" />
-                        <path d="M12 7m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z" />
-                        <path d="M12 15m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z" />
-                      </svg>
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                      </svg>
-                      <span>від {task.parentTaskId}</span>
-                    </div>
-                    <Badge variant="secondary" className="text-xs px-2 py-0 bg-blue-100 text-blue-700 border-blue-200">
-                      SUBTASK
-                    </Badge>
-                  </div>
-                )}
+
+
                 {/* ID */}
                 {cardFields.taskId && (
-                  <div className="text-xs font-semibold text-[#60646c] mb-1">{task.taskId}</div>
-                )}
-                {/* Title (Name) */}
-                {cardFields.name !== false && (
-                  <div 
-                    className="flex items-center gap-1 text-base font-semibold text-[#1c2024] mb-1 cursor-pointer hover:text-blue-600 transition-colors"
-                    onClick={() => onTaskClick && onTaskClick(task)}
-                  >
+                  <div className="flex items-center gap-1 text-xs font-semibold text-[#60646c] mb-1">
                     {/* Subtask indicator for grouped view */}
                     {isSubtask && !task.isSubtaskInFlat && (
-                      <svg className="w-4 h-4 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                         <path d="M6 9l6 0" />
                         <path d="M4 5l4 0" />
@@ -709,6 +694,15 @@ export default function KanbanBoard({
                         <path d="M12 15m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z" />
                       </svg>
                     )}
+                    <span>{task.taskId}</span>
+                  </div>
+                )}
+                {/* Title (Name) */}
+                {cardFields.name !== false && (
+                  <div 
+                    className="text-base font-semibold text-[#1c2024] mb-1 cursor-pointer hover:text-blue-600 transition-colors"
+                    onClick={() => onTaskClick && onTaskClick(task)}
+                  >
                     {task.title}
                   </div>
                 )}
@@ -764,16 +758,25 @@ export default function KanbanBoard({
                     <div className="flex items-center gap-2">
                       {/* Priority - invisible but takes space when hidden */}
                       <div className={`flex items-center gap-2 ${cardFields.priority ? '' : 'invisible'}`}>
-                        {/* Unified Flag icon for all priorities with different colors */}
-                        <Flag 
-                          className={`w-4 h-4 ${
-                            task.priority === "Emergency" ? "text-[#e5484d]" : 
-                            task.priority === "High" ? "text-[#e5484d]" : 
-                            task.priority === "Low" ? "text-[#8b8d98]" : 
-                            "text-[#0034dc]"
-                          }`} 
-                        />
-                        <span className={`text-sm font-medium ${task.priority === "Emergency" || task.priority === "High" ? "text-[#e5484d]" : task.priority === "Low" ? "text-[#8b8d98]" : "text-[#0034dc]"}`}>{task.priority || "Normal"}</span>
+                        {/* Different icons for each priority */}
+                        {task.priority === "Emergency" && (
+                          <div className="flex">
+                            <ChevronUp className="w-4 h-4 text-[#e5484d] -mr-1" />
+                            <ChevronUp className="w-4 h-4 text-[#e5484d]" />
+                          </div>
+                        )}
+                        {task.priority === "High" && (
+                          <ChevronUp className="w-4 h-4 text-[#e5484d]" />
+                        )}
+                        {(task.priority === "Normal" || !task.priority) && (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-minus w-4 h-4 text-[#0034dc]">
+                            <path d="M5 12h14"></path>
+                          </svg>
+                        )}
+                        {task.priority === "Low" && (
+                          <ChevronDown className="w-4 h-4 text-[#16a34a]" />
+                        )}
+                        <span className={`text-sm font-medium ${task.priority === "Emergency" || task.priority === "High" ? "text-[#e5484d]" : task.priority === "Low" ? "text-[#16a34a]" : "text-[#0034dc]"}`}>{task.priority || "Normal"}</span>
                       </div>
                     </div>
                     {/* Due date */}
@@ -1017,7 +1020,9 @@ export default function KanbanBoard({
                               {columnTasks.length === 0 && (
                                 <div className="text-xs text-gray-400 flex-1 flex items-center justify-center">No tasks</div>
                               )}
-                              {columnTasks.map((task: any, idx: number) => renderCard(task))}
+                              {columnTasks.map((task: any, idx: number) => {
+                                return renderCard(task, task.isSubtaskInFlat);
+                              })}
                               {provided.placeholder}
                             </div>
                           )}
