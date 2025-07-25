@@ -144,10 +144,10 @@ export const TaskPreview: React.FC<TaskPreviewProps> = ({ task, onClose }) => {
                   <div className="text-[#8b8d98]">Assignee</div>
                   <div className="flex items-center gap-2 mt-1">
                     <Avatar className="w-6 h-6">
-                      <AvatarImage src={task.assignee.avatarUrl} />
-                      <AvatarFallback className="text-xs">{task.assignee.initials}</AvatarFallback>
+                      <AvatarImage src={task.assignee.avatarUrl || "https://randomuser.me/api/portraits/men/32.jpg"} />
+                      <AvatarFallback className="text-xs bg-gray-100">{task.assignee.initials}</AvatarFallback>
                     </Avatar>
-                    <span>{task.assignee.name}</span>
+                    <span className="text-[13px] font-normal leading-5 text-[#1c2024]">{task.assignee.name}</span>
                   </div>
                 </div>
                 <div>
@@ -239,7 +239,8 @@ export const TaskPreview: React.FC<TaskPreviewProps> = ({ task, onClose }) => {
                           {subtask.status}
                         </Badge>
                         <Avatar className="w-6 h-6">
-                          <AvatarFallback className="text-xs bg-[#f3f3f3] text-[#60646c]">
+                          <AvatarImage src={subtask.assignee.avatarUrl || "https://randomuser.me/api/portraits/men/32.jpg"} />
+                          <AvatarFallback className="text-xs bg-gray-100">
                             {subtask.assignee.initials}
                           </AvatarFallback>
                         </Avatar>

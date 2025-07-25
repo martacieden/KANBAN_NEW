@@ -88,3 +88,92 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Hover-only scrollbar that doesn't affect layout */
+  .hover-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    scrollbar-gutter: stable;
+  }
+
+  .hover-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    background: transparent;
+  }
+
+  .hover-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .hover-scrollbar::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .hover-scrollbar:hover {
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+
+  .hover-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+
+  .hover-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  /* Alternative approach for consistent width */
+  .hover-scrollbar {
+    padding-right: 8px;
+    margin-right: -8px;
+  }
+
+  /* Horizontal hover scrollbar for kanban board */
+  .horizontal-hover-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    scrollbar-gutter: stable;
+    padding-bottom: 8px;
+    margin-bottom: -8px;
+  }
+
+  .horizontal-hover-scrollbar::-webkit-scrollbar {
+    height: 8px;
+    background: transparent;
+  }
+
+  .horizontal-hover-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .horizontal-hover-scrollbar::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .horizontal-hover-scrollbar:hover {
+    scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+  }
+
+  .horizontal-hover-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+
+  .horizontal-hover-scrollbar:hover::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  /* Touch devices (tablets) - always show but subtle */
+  @media (hover: none) and (pointer: coarse) {
+    .horizontal-hover-scrollbar {
+      scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+    }
+    
+    .horizontal-hover-scrollbar::-webkit-scrollbar-thumb {
+      background-color: rgba(0, 0, 0, 0.2);
+    }
+  }
+}

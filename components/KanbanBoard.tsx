@@ -87,7 +87,7 @@ export const initialTasks = [
     progress: 100,
     department: "Legal",
     type: "Task",
-    clientInfo: "Acme Inc.",
+    clientInfo: "Global Ventures LLC",
     description: "Renew property insurance for Sand Lane property. Compare quotes from multiple providers and ensure adequate coverage. This is a longer description to demonstrate how the text will be clamped to a maximum of three lines in the card. Any extra text will be hidden and replaced with an ellipsis. We need to evaluate different insurance companies, their coverage options, deductibles, and premium costs. The property is located in a high-risk area, so we need comprehensive coverage including flood, fire, and liability insurance. Additionally, we should consider umbrella policies for extra protection.",
     status: "To do",
     attachmentCount: 3,
@@ -109,7 +109,7 @@ export const initialTasks = [
     progress: 40,
     department: "Philanthropy",
     type: "Task",
-    clientInfo: "Acme Inc.",
+    clientInfo: "Stellar Foundation",
     description: "Define philanthropic goals for 2025. Focus on education and environmental initiatives.",
     status: "To do",
     attachmentCount: 8,
@@ -141,7 +141,7 @@ export const initialTasks = [
     progress: 60,
     department: "Investment",
     type: "Task",
-    clientInfo: "Acme Inc.",
+    clientInfo: "TechCorp Solutions",
     description: "Set up comprehensive family office budget for next fiscal year with detailed expense tracking.",
     status: "In Progress",
     attachmentCount: 12,
@@ -173,7 +173,7 @@ export const initialTasks = [
     progress: 70,
     department: "Legal",
     type: "Task",
-    clientInfo: "Acme Inc.",
+    clientInfo: "Metropolitan Holdings",
     description: "Complete tenant screening process for multiple properties including background and credit checks. This comprehensive process involves multiple steps and detailed verification procedures. We need to conduct thorough background checks, verify employment history, check credit scores, contact previous landlords, and ensure all applicants meet our strict criteria. The screening process must comply with fair housing laws and regulations. We also need to verify income requirements (typically 3x rent), check for any criminal history, and assess the overall reliability of potential tenants. Documentation must be properly maintained for legal compliance and future reference.",
     status: "In Progress",
     attachmentCount: 18,
@@ -198,7 +198,7 @@ export const initialTasks = [
     progress: 50,
     department: "HR",
     type: "Task",
-    clientInfo: "Acme Inc.",
+    clientInfo: "SecureHome Corp",
     description: "Upgrade home security systems including cameras, alarms, and access control.",
     status: "In Progress",
     attachmentCount: 2,
@@ -228,7 +228,7 @@ export const initialTasks = [
     progress: 30,
     department: "Legal",
     type: "Task",
-    clientInfo: "Acme Inc.",
+    clientInfo: "Aviation Elite Ltd",
     description: "Complete purchase of Challenger 350 aircraft including inspection, documentation, and registration.",
     status: "Needs Work",
     attachmentCount: 25,
@@ -251,7 +251,7 @@ export const initialTasks = [
     progress: 60,
     department: "HR",
     type: "Task",
-    clientInfo: "Acme Inc.",
+    clientInfo: "DigitalFlow Systems",
     description: "Comprehensive IT infrastructure upgrade including servers, networking, and security systems.",
     status: "Needs Work",
     attachmentCount: 7,
@@ -284,7 +284,7 @@ export const initialTasks = [
     progress: 20,
     department: "HR",
     type: "Task",
-    clientInfo: "Acme Inc.",
+    clientInfo: "ProLearn Institute",
     description: "Organize comprehensive annual employee training program covering compliance, skills development, and team building. This extensive program will include multiple modules designed to enhance employee capabilities and ensure regulatory compliance. The training will cover topics such as workplace safety, diversity and inclusion, cybersecurity awareness, professional development, leadership skills, and industry-specific regulations. We need to coordinate with external trainers, book appropriate venues, prepare training materials, and ensure all employees can attend their required sessions. The program should be engaging, interactive, and measurable with clear learning outcomes and assessment criteria.",
     status: "Needs Work",
     attachmentCount: 14,
@@ -472,18 +472,48 @@ const CARD_FIELDS = [
   { key: "description", label: "Description", pinned: true },
 ];
 
+// Функція для генерації унікального кольору на основі тексту
+function generateColorFromText(text: string): string {
+  // Простий хеш для тексту
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  // Конвертуємо хеш в індекс кольору
+  const colors = [
+    'from-blue-400 via-blue-500 to-blue-600',
+    'from-purple-400 via-purple-500 to-purple-600', 
+    'from-pink-400 via-pink-500 to-pink-600',
+    'from-green-400 via-green-500 to-green-600',
+    'from-yellow-400 via-yellow-500 to-yellow-600',
+    'from-red-400 via-red-500 to-red-600',
+    'from-indigo-400 via-indigo-500 to-indigo-600',
+    'from-teal-400 via-teal-500 to-teal-600',
+    'from-orange-400 via-orange-500 to-orange-600',
+    'from-cyan-400 via-cyan-500 to-cyan-600'
+  ];
+  
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+}
+
 export default function KanbanBoard({
   showSettings: showSettingsProp,
   setShowSettings: setShowSettingsProp,
   cardFields: cardFieldsProp,
   setCardFields: setCardFieldsProp,
   onTaskClick,
+  onTaskUpdate,
 }: {
   showSettings?: boolean,
   setShowSettings?: (v: boolean) => void,
   cardFields?: Record<string, boolean>,
   setCardFields?: (v: Record<string, boolean>) => void,
   onTaskClick?: (task: any) => void,
+  onTaskUpdate?: (updatedTask: any) => void,
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [draggedTask, setDraggedTask] = useState<null | { id: string; status: string }>(null);
@@ -556,11 +586,13 @@ export default function KanbanBoard({
   const onDragEnd = (result: DropResult) => {
     setDraggedTask(null);
     const { destination, source, draggableId } = result;
+    console.log('onDragEnd called:', { destination, source, draggableId });
     if (!destination) return;
     if (destination.droppableId === source.droppableId) return;
     // Find task or subtask
     let task = tasks.find((t) => t.id === draggableId);
     let isSubtask = false;
+    console.log('Found task:', task);
     if (!task) {
       for (const t of tasks) {
         if (t.subtasks) {
@@ -584,8 +616,20 @@ export default function KanbanBoard({
         ...t,
         subtasks: t.subtasks ? t.subtasks.map((st: any) => st.id === draggableId ? { ...st, status: destination.droppableId } : st) : [],
       })));
+      // Notify parent about updated subtask
+      if (onTaskUpdate) {
+        const updatedSubtask = { ...task, status: destination.droppableId };
+        console.log('KanbanBoard: calling onTaskUpdate for subtask with:', updatedSubtask);
+        onTaskUpdate(updatedSubtask);
+      }
     } else {
       setTasks(prev => prev.map(t => t.id === draggableId ? { ...t, status: destination.droppableId } : t));
+      // Notify parent about updated task
+      if (onTaskUpdate) {
+        const updatedTask = { ...task, status: destination.droppableId };
+        console.log('KanbanBoard: calling onTaskUpdate with:', updatedTask);
+        onTaskUpdate(updatedTask);
+      }
     }
     toast.success(`Task moved to ${destination.droppableId}`);
   };
@@ -644,19 +688,6 @@ export default function KanbanBoard({
                     </Badge>
                   </div>
                 )}
-                {/* Subtask indicator for grouped view */}
-                {isSubtask && !task.isSubtaskInFlat && (
-                  <div className="flex items-center gap-1 text-xs text-gray-600 mb-1">
-                    <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                      <path d="M6 9l6 0" />
-                      <path d="M4 5l4 0" />
-                      <path d="M6 5v11a1 1 0 0 0 1 1h5" />
-                      <path d="M12 7m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z" />
-                      <path d="M12 15m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z" />
-                    </svg>
-                  </div>
-                )}
                 {/* ID */}
                 {cardFields.taskId && (
                   <div className="text-xs font-semibold text-[#60646c] mb-1">{task.taskId}</div>
@@ -664,9 +695,20 @@ export default function KanbanBoard({
                 {/* Title (Name) */}
                 {cardFields.name !== false && (
                   <div 
-                    className="text-base font-semibold text-[#1c2024] mb-1 cursor-pointer hover:text-blue-600 transition-colors"
+                    className="flex items-center gap-1 text-base font-semibold text-[#1c2024] mb-1 cursor-pointer hover:text-blue-600 transition-colors"
                     onClick={() => onTaskClick && onTaskClick(task)}
                   >
+                    {/* Subtask indicator for grouped view */}
+                    {isSubtask && !task.isSubtaskInFlat && (
+                      <svg className="w-4 h-4 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M6 9l6 0" />
+                        <path d="M4 5l4 0" />
+                        <path d="M6 5v11a1 1 0 0 0 1 1h5" />
+                        <path d="M12 7m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z" />
+                        <path d="M12 15m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z" />
+                      </svg>
+                    )}
                     {task.title}
                   </div>
                 )}
@@ -674,13 +716,28 @@ export default function KanbanBoard({
                 {cardFields.description && task.description && (
                   <div className="text-sm text-[#8b8d98] mb-2 line-clamp-3">{task.description}</div>
                 )}
+                {/* Tags */}
+                {cardFields.tags && task.tags && task.tags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1 mb-2">
+                    {task.tags.slice(0, 3).map((tag: string, index: number) => (
+                      <span key={index} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                        {tag}
+                      </span>
+                    ))}
+                    {task.tags.length > 3 && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600 border border-gray-300">
+                        +{task.tags.length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {/* Org + Avatars - не показувати організацію для підзадач */}
                 {((cardFields.organization && !isSubtask) || cardFields.assignee) && (
                   <div className="flex items-center justify-between mb-1">
                     {/* Org logo and organization - приховано для підзадач */}
                     {!isSubtask && (
                       <div className={`flex items-center gap-2 ${cardFields.organization ? '' : 'invisible'}`}>
-                        <span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 via-pink-400 to-purple-400 flex items-center justify-center">
+                        <span className={`w-6 h-6 rounded-full bg-gradient-to-br ${generateColorFromText(task.clientInfo || 'default')} flex items-center justify-center`}>
                           <span className="sr-only">Org</span>
                         </span>
                         <span className="text-sm text-[#1c2024] font-medium mr-2">{task.clientInfo}</span>
@@ -727,26 +784,28 @@ export default function KanbanBoard({
                   <div className="flex items-center gap-3 mt-2 w-full">
                     {subtasksCount > 0 && (
                       <div 
-                        className="flex items-center gap-2 cursor-pointer select-none hover:bg-gray-100 rounded px-1 py-0.5 transition-colors duration-100 ease-out"
+                        className="flex items-center gap-1 cursor-pointer select-none hover:bg-gray-100 rounded px-0.5 py-0 transition-colors duration-100 ease-out"
                         onClick={() => setExpandedSubtasks(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
                       >
                         {expandedSubtasks[task.id] ? (
-                          <ChevronDown className="w-5 h-5 text-[#8b8d98]" />
+                          <ChevronDown className="w-4 h-4 text-[#8b8d98]" />
                         ) : (
-                          <ChevronRight className="w-5 h-5 text-[#8b8d98]" />
+                          <ChevronRight className="w-4 h-4 text-[#8b8d98]" />
                         )}
-                        <span className="font-semibold text-base text-[#1c2024]">{subtasksCount} subtasks</span>
+                        <span className="font-medium text-sm text-[#1c2024]">{subtasksCount} subtasks</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 ml-auto">
+                    <div className="flex items-center gap-1 ml-auto">
                       {showAttachments && (
-                        <span className="flex items-center gap-1 px-3 py-1 rounded-md bg-[#f3f3f3] text-sm text-[#60646c]">
-                          <Paperclip className="w-4 h-4" />{task.attachmentCount}
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#f3f3f3] text-xs text-[#60646c]">
+                          <Paperclip className="w-3 h-3" />
+                          <span>{task.attachmentCount || 0}</span>
                         </span>
                       )}
                       {showComments && (
-                        <span className="flex items-center gap-1 px-3 py-1 rounded-md bg-[#f3f3f3] text-sm text-[#60646c]">
-                          <MessageCircle className="w-4 h-4" />{task.commentCount}
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#f3f3f3] text-xs text-[#60646c]">
+                          <MessageCircle className="w-3 h-3" />
+                          <span>{task.commentCount || 0}</span>
                         </span>
                       )}
                     </div>
@@ -771,7 +830,7 @@ export default function KanbanBoard({
     <TooltipProvider>
       <div className="flex flex-col h-full w-full">
         {/* Kanban scroll area with padding */}
-        <div className="flex-1 px-3 pt-3 pb-3">
+                      <div className="flex-1 px-4 pt-4 pb-4">
             <style>{`
               .kanban-scrollbar {
                 scrollbar-width: none;
@@ -803,7 +862,7 @@ export default function KanbanBoard({
               onMouseEnter={e => e.currentTarget.classList.add('kanban-scroll-hover')}
               onMouseLeave={e => e.currentTarget.classList.remove('kanban-scroll-hover')}
             >
-              <div className="kanban-scrollbar flex gap-3 min-h-[700px] overflow-x-hidden hover:overflow-x-auto" style={{overflowY: 'hidden', position: 'relative'}}>
+              <div className="kanban-scrollbar flex gap-3 min-h-[700px] overflow-x-auto horizontal-hover-scrollbar" style={{overflowY: 'hidden', position: 'relative'}}>
                 <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
                   {STATUSES.map((column) => {
                     const columnTasks = getColumnTasks(column.id);
@@ -859,7 +918,7 @@ export default function KanbanBoard({
                               : ""
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-0 px-6 pt-3 pb-1 group">
+                          <div className="flex items-center justify-between mb-0 px-4 pt-3 pb-1 group">
                             <div className="flex items-center gap-2">
                               <h3 className="font-medium text-base text-[#1c2024]">{column.title}</h3>
                               <Badge className="text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center">{columnTasks.length}</Badge>
@@ -948,7 +1007,7 @@ export default function KanbanBoard({
                             </div>
                         </div>
                           {!collapsed[column.id] && (
-                            <div className="flex-1 overflow-y-auto px-4 pb-4">
+                            <div className="flex-1 overflow-y-auto px-4 pb-4 hover-scrollbar">
                               {columnTasks.length === 0 && (
                                 <div className="text-xs text-gray-400 flex-1 flex items-center justify-center">No tasks</div>
                               )}
