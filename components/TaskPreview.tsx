@@ -183,6 +183,11 @@ export const TaskPreview: React.FC<TaskPreviewProps> = ({ task, onClose }) => {
                 </div>
               </div>
             </div>
+            {/* ID */}
+            <div className="mb-6">
+              <div className="font-semibold text-base mb-1">ID</div>
+              <div className="text-sm text-[#1c2024] font-mono">{task.taskId || task.id}</div>
+            </div>
             {/* Description */}
             {task.description && (
               <div className="mb-6">

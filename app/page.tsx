@@ -47,7 +47,7 @@ function generateColorFromText(text: string): string {
 export default function Page() {
   // Define fields for Kanban cards
   const KANBAN_CARD_FIELDS = [
-    { key: "taskId", label: "ID", pinned: true },
+    { key: "taskId", label: "ID", pinned: false },
     { key: "name", label: "Name", pinned: true },
     { key: "organization", label: "Organization", pinned: false },
     { key: "priority", label: "Priority", pinned: false },
@@ -61,7 +61,7 @@ export default function Page() {
 
   // Define fields for Table columns (more fields available)
   const TABLE_COLUMN_FIELDS = [
-    { key: "taskId", label: "ID", pinned: true },
+    { key: "taskId", label: "ID", pinned: false },
     { key: "title", label: "Name", pinned: true },
     { key: "priority", label: "Priority", pinned: false },
     { key: "status", label: "Status", pinned: false },
@@ -77,14 +77,22 @@ export default function Page() {
     { key: "comments", label: "Comments", pinned: false },
   ];
   // Get current fields based on view
-  const getCurrentFields = () => view === 'kanban' ? KANBAN_CARD_FIELDS : TABLE_COLUMN_FIELDS;
+  const getCurrentFields = () => {
+    const fields = view === 'kanban' ? KANBAN_CARD_FIELDS : TABLE_COLUMN_FIELDS;
+    // Sort fields to put "Name" first
+    return fields.sort((a, b) => {
+      if (a.key === 'name' || a.key === 'title') return -1;
+      if (b.key === 'name' || b.key === 'title') return 1;
+      return 0;
+    });
+  };
   
   // State for cardFields
   const [cardFields, setCardFields] = useState<Record<string, boolean>>(() => {
     const obj: Record<string, boolean> = {};
     // Initialize with all possible fields from both lists
     [...KANBAN_CARD_FIELDS, ...TABLE_COLUMN_FIELDS].forEach(f => {
-      // Tags hidden by default
+      // Show all fields by default except Tags
       obj[f.key] = f.key !== 'tags';
     });
     return obj;
@@ -268,47 +276,40 @@ export default function Page() {
                           </div>
                           {/* Scrollable content area */}
                           <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
-                            {/* Pinned fields */}
-                            {[
-                              { key: "taskId", label: "ID", pinned: true },
-                              { key: "name", label: "Name", pinned: true },
-                            ].filter(f => f.label.toLowerCase().includes(settingsSearch.toLowerCase())).map((field, idx) => (
-                              <div key={field.key} className="flex items-center justify-between py-1">
-                                <span className="text-[15px] text-[#1c2024]">{field.label}</span>
-                                <Switch checked disabled={true} />
-                              </div>
-                            ))}
-                            <hr className="my-2 border-gray-200" />
-                            {/* Regular fields - ordered by card display sequence */}
-                            {[
-                              "description",
-                              "organization", 
-                              "assignee",
-                              "priority",
-                              "dueDate",
-                              "tags",
-                              "attachments",
-                              "comments"
-                            ].map(fieldKey => {
-                              const field = getCurrentFields().find(f => f.key === fieldKey);
-                              if (!field || field.pinned) return null;
-                              if (!field.label.toLowerCase().includes(settingsSearch.toLowerCase())) return null;
-                              
-                              return (
-                                <div key={field.key} className="flex items-center justify-between py-1">
-                                  <span className="text-[15px] text-[#1c2024]">{field.label}</span>
-                                  <Switch
-                                    checked={cardFields[field.key]}
-                                    onCheckedChange={() => {
-                                      setCardFields(prev => ({
-                                        ...prev,
-                                        [field.key]: !prev[field.key]
-                                      }));
-                                    }}
-                                  />
+                            {/* Show all available fields based on current view */}
+                            {getCurrentFields()
+                              .filter(field => field.label.toLowerCase().includes(settingsSearch.toLowerCase()))
+                              .map((field, idx) => (
+                                <div key={field.key}>
+                                  <div className="flex items-center justify-between py-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[15px] text-[#1c2024]">{field.label}</span>
+                                      {field.pinned && (
+                                        <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600">
+                                          Required
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <Switch
+                                      checked={cardFields[field.key] !== false}
+                                      disabled={field.pinned}
+                                      onCheckedChange={(checked) => {
+                                        if (!field.pinned) {
+                                          setCardFields(prev => ({
+                                            ...prev,
+                                            [field.key]: checked
+                                          }));
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                  {/* Add separator line after Name field */}
+                                  {(field.key === 'name' || field.key === 'title') && (
+                                    <div className="border-t border-gray-200 my-2"></div>
+                                  )}
                                 </div>
-                              );
-                            }).filter(Boolean)}
+                              ))
+                            }
                           </div>
                           {/* Reset button - fixed at bottom */}
                           <button
@@ -316,7 +317,7 @@ export default function Page() {
                             onClick={() => setCardFields(() => {
                               const obj: Record<string, boolean> = {};
                               getCurrentFields().forEach(f => {
-                                // Tags hidden by default even after reset
+                                // Show all fields by default except Tags
                                 obj[f.key] = f.key !== 'tags';
                               });
                               return obj;

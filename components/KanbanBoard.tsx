@@ -14,21 +14,7 @@ import TaskPreview from "./TaskPreview";
 import React from "react";
 
 // Types for Smart Preview functionality
-interface ViewportInfo {
-  visibleColumns: string[];
-  hiddenLeft: string[];
-  hiddenRight: string[];
-  scrollPosition: number;
-  containerWidth: number;
-}
 
-interface ColumnPreview {
-  id: string;
-  title: string;
-  taskCount: number;
-  color: string;
-  index: number;
-}
 
 const STATUSES = [
   { id: "To do", title: "To do", color: "bg-blue-50 border-blue-200" },
@@ -46,15 +32,23 @@ const allowedTransitions: Record<string, string[]> = {
   "In Progress": ["Needs Work", "Verified", "Paused", "Blocked", "To do"],
   "Needs Work": ["In Progress", "Blocked", "Paused"],
   "Verified": ["Acknowledged", "Done", "Paused", "Blocked"],
-  "Acknowledged": ["Done", "Verified", "Paused", "Blocked"],
+  "Acknowledged": ["Done"],
   "Paused": ["In Progress", "To do", "Blocked"],
   "Blocked": ["To do", "In Progress", "Paused"],
   "Done": ["In Progress", "Acknowledged"],
 };
 
 const isValidTransition = (fromStatus: string, toStatus: string): boolean => {
+  // Allow dropping in the same status
   if (fromStatus === toStatus) return true;
-  return allowedTransitions[fromStatus]?.includes(toStatus) || false;
+  
+  // Check if the transition is allowed
+  const allowedTargets = allowedTransitions[fromStatus];
+  if (!allowedTargets) {
+    return false;
+  }
+  
+  return allowedTargets.includes(toStatus);
 };
 
 export const initialTasks = [
@@ -480,7 +474,7 @@ const statusColorMap = Object.fromEntries(
 );
 
 const CARD_FIELDS = [
-  { key: "taskId", label: "Task ID", pinned: true },
+  { key: "taskId", label: "Task ID", pinned: false },
   { key: "organization", label: "Organization", pinned: false },
   { key: "priority", label: "Priority", pinned: true },
   { key: "category", label: "Category", pinned: true },
@@ -519,227 +513,9 @@ function generateColorFromText(text: string): string {
 }
 
 // Hook for detecting visible and hidden columns
-const useViewportDetection = (columnOrder: string[], containerRef: React.RefObject<HTMLDivElement | null>) => {
-  const [viewportInfo, setViewportInfo] = useState<ViewportInfo>({
-    visibleColumns: [],
-    hiddenLeft: [],
-    hiddenRight: [],
-    scrollPosition: 0,
-    containerWidth: 0
-  });
 
-  const detectVisibleColumns = useCallback(() => {
-    if (!containerRef.current) return;
 
-    try {
-      const container = containerRef.current;
-      const containerRect = container.getBoundingClientRect();
-      const scrollLeft = container.scrollLeft;
-      
-      const visibleColumns: string[] = [];
-      const hiddenLeft: string[] = [];
-      const hiddenRight: string[] = [];
 
-      columnOrder.forEach((columnId) => {
-        const columnElement = container.querySelector(`[data-column-id="${columnId}"]`);
-        if (!columnElement) return;
-
-        const columnRect = columnElement.getBoundingClientRect();
-        const containerLeft = containerRect.left;
-        const containerRight = containerRect.right;
-        
-        // Column is visible if at least part of it is in viewport
-        // Use more generous margins to prevent columns from being marked as hidden too easily
-        const isVisible = columnRect.right > containerLeft + 100 && columnRect.left < containerRight - 100;
-        
-        if (isVisible) {
-          visibleColumns.push(columnId);
-        } else if (columnRect.right <= containerLeft + 100) {
-          hiddenLeft.push(columnId);
-        } else if (columnRect.left >= containerRight - 100) {
-          hiddenRight.push(columnId);
-        }
-      });
-
-      setViewportInfo({
-        visibleColumns,
-        hiddenLeft,
-        hiddenRight,
-        scrollPosition: scrollLeft,
-        containerWidth: containerRect.width
-      });
-    } catch (error) {
-      console.warn('Error detecting visible columns:', error);
-    }
-  }, [columnOrder]);
-
-  return { viewportInfo, detectVisibleColumns };
-};
-
-// Hook for auto-scroll functionality
-const useAutoScroll = (containerRef: React.RefObject<HTMLDivElement | null>) => {
-  const scrollToColumn = useCallback((columnId: string) => {
-    if (!containerRef.current) return;
-    
-    try {
-      const container = containerRef.current;
-      const columnElement = container.querySelector(`[data-column-id="${columnId}"]`);
-      
-      if (columnElement) {
-        const containerRect = container.getBoundingClientRect();
-        const columnRect = columnElement.getBoundingClientRect();
-        
-        // Only scroll if column is actually hidden
-        const isVisible = columnRect.right > containerRect.left + 100 && columnRect.left < containerRect.right - 100;
-        
-        if (!isVisible) {
-          // Calculate scroll position to center the column in viewport
-          const columnCenter = columnRect.left - containerRect.left + columnRect.width / 2;
-          const containerCenter = containerRect.width / 2;
-          const scrollOffset = container.scrollLeft + columnCenter - containerCenter;
-          
-          container.scrollTo({
-            left: Math.max(0, Math.min(scrollOffset, container.scrollWidth - container.clientWidth)),
-            behavior: 'smooth'
-          });
-        }
-      }
-    } catch (error) {
-      console.warn('Error scrolling to column:', error);
-    }
-  }, []);
-
-  const autoScroll = useCallback((direction: 'left' | 'right') => {
-    if (!containerRef.current) return;
-    
-    try {
-      const container = containerRef.current;
-      const scrollAmount = 300; // pixels per scroll
-      const currentScroll = container.scrollLeft;
-      
-      const newScroll = direction === 'left' 
-        ? Math.max(0, currentScroll - scrollAmount)
-        : Math.min(container.scrollWidth - container.clientWidth, currentScroll + scrollAmount);
-        
-      container.scrollTo({
-        left: newScroll,
-        behavior: 'smooth'
-      });
-    } catch (error) {
-      console.warn('Error auto-scrolling:', error);
-    }
-  }, []);
-
-  return { scrollToColumn, autoScroll };
-};
-
-// Preview Column Card Component
-const PreviewColumnCard: React.FC<{
-  columnId: string;
-  tasks: any[];
-  draggedTask: any;
-  onHover: () => void;
-  onDrop: () => void;
-  isHovered: boolean;
-  setHovered: (id: string | null) => void;
-}> = ({ columnId, tasks, draggedTask, onHover, onDrop, isHovered, setHovered }) => {
-  
-  const column = STATUSES.find(s => s.id === columnId);
-  const canDrop = draggedTask ? isValidTransition(draggedTask.status, columnId) : false;
-
-  return (
-    <Droppable droppableId={`preview-${columnId}`} isDropDisabled={!canDrop}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.droppableProps}
-          className={`
-            p-3 rounded-lg border-2 transition-all duration-150 min-h-[60px] flex items-center justify-between
-            ${canDrop 
-              ? 'border-blue-300 bg-blue-50 hover:bg-blue-100 cursor-pointer' 
-              : 'border-gray-300 bg-gray-100 opacity-60 cursor-not-allowed'
-            }
-            ${snapshot.isDraggingOver ? 'border-blue-500 bg-blue-100 scale-105' : ''}
-            ${isHovered && canDrop ? 'ring-2 ring-blue-300' : ''}
-          `}
-          onMouseEnter={() => {
-            if (canDrop) {
-              setHovered(columnId);
-              onHover();
-            }
-          }}
-          onMouseLeave={() => setHovered(null)}
-        >
-          <div className="flex-1">
-            <h4 className={`font-medium text-sm ${canDrop ? 'text-gray-900' : 'text-gray-500'}`}>
-              {column?.title}
-            </h4>
-            <div className={`text-xs mt-1 ${canDrop ? 'text-blue-600' : 'text-gray-400'}`}>
-              {canDrop ? 'Drop task here' : 'Cannot move here'}
-            </div>
-          </div>
-          
-          <Badge className={`text-xs px-2 py-0.5 h-6 ${canDrop ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-600'}`}>
-            {tasks.length}
-          </Badge>
-          
-          {provided.placeholder}
-        </div>
-      )}
-    </Droppable>
-  );
-};
-
-// Smart Preview Zones Component
-const SmartPreviewZones: React.FC<{
-  isDragging: boolean;
-  draggedTask: any;
-  viewportInfo: ViewportInfo;
-  tasks: any[];
-  getColumnTasks: (status: string) => any[];
-  onPreviewHover: (columnId: string) => void;
-  onPreviewDrop: (columnId: string) => void;
-  onAutoScroll: (direction: 'left' | 'right') => void;
-}> = ({ isDragging, draggedTask, viewportInfo, tasks, getColumnTasks, onPreviewHover, onPreviewDrop, onAutoScroll }) => {
-  
-  const [hoveredPreview, setHoveredPreview] = useState<string | null>(null);
-
-  // Show all columns (both hidden left and right) in the right preview zone
-  const allHiddenColumns = [...viewportInfo.hiddenLeft, ...viewportInfo.hiddenRight];
-  
-  // Only show preview if there are actually hidden columns and we're dragging
-  // Also ensure we have a valid dragged task
-  if (!isDragging || !draggedTask || allHiddenColumns.length === 0) {
-    return null;
-  }
-
-  return (
-    <div
-      className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 
-                 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg 
-                 shadow-lg p-3 w-72 transition-all duration-200 max-h-[70vh] overflow-y-auto"
-    >
-      <div className="text-xs font-medium text-gray-600 mb-3 flex items-center gap-2">
-        <Layers className="w-4 h-4" />
-        Available columns ({allHiddenColumns.length})
-      </div>
-      <div className="space-y-2">
-        {allHiddenColumns.map(columnId => (
-          <PreviewColumnCard
-            key={columnId}
-            columnId={columnId}
-            tasks={getColumnTasks(columnId)}
-            draggedTask={draggedTask}
-            onHover={() => onPreviewHover(columnId)}
-            onDrop={() => onPreviewDrop(columnId)}
-            isHovered={hoveredPreview === columnId}
-            setHovered={setHoveredPreview}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
 
 export default function KanbanBoard({
   showSettings: showSettingsProp,
@@ -764,10 +540,6 @@ export default function KanbanBoard({
   const [draggedTask, setDraggedTask] = useState<null | any>(null);
   const [internalShowSettings, internalSetShowSettings] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  
-  // Refs for Smart Preview functionality
-  const containerRef = useRef<HTMLDivElement>(null);
-  
   const showSettings = showSettingsProp !== undefined ? showSettingsProp : internalShowSettings;
   const setShowSettings = setShowSettingsProp || internalSetShowSettings;
   const [settingsSearch, setSettingsSearch] = useState("");
@@ -776,7 +548,10 @@ export default function KanbanBoard({
   const [search, setSearch] = useState("");
   const [internalCardFields, internalSetCardFields] = useState<Record<string, boolean>>(() => {
     const obj: Record<string, boolean> = {};
-    CARD_FIELDS.forEach(f => obj[f.key] = true);
+    CARD_FIELDS.forEach(f => {
+      // Show all fields by default except Tags
+      obj[f.key] = f.key !== 'tags';
+    });
     return obj;
   });
   const cardFields = cardFieldsProp || internalCardFields;
@@ -797,10 +572,6 @@ export default function KanbanBoard({
     "Blocked", 
     "Done"
   ]);
-
-  // Initialize Smart Preview hooks
-  const { viewportInfo, detectVisibleColumns } = useViewportDetection(columnOrder, containerRef);
-  const { scrollToColumn, autoScroll } = useAutoScroll(containerRef);
 
   // Get ordered statuses based on current order
   const orderedStatuses = useMemo(() => {
@@ -852,15 +623,13 @@ export default function KanbanBoard({
     setIsDragging(true);
     
     if (start.type === 'COLUMN') {
-      // Column drag started - don't set dragged task
       setDraggedTask(null);
       return;
     }
     
-    // Task drag started - find main task or subtask
+    // Fast task finding
     let task = tasks.find((t) => t.id === start.draggableId);
     if (!task) {
-      // Check if it's a subtask
       for (const t of tasks) {
         if (t.subtasks) {
           const st = t.subtasks.find((st: any) => st.id === start.draggableId);
@@ -872,11 +641,7 @@ export default function KanbanBoard({
       }
     }
     
-    if (task) {
-      setDraggedTask(task);
-    } else {
-      setDraggedTask(null);
-    }
+    setDraggedTask(task || null);
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -885,9 +650,10 @@ export default function KanbanBoard({
     setDraggedTask(null);
     
     const { destination, source, draggableId, type } = result;
-    console.log('onDragEnd called:', { destination, source, draggableId, type, wasTaskDrag });
     
-    if (!destination) return;
+    if (!destination) {
+      return;
+    }
     
     // Handle preview drops - only for task drags
     if (destination.droppableId.startsWith('preview-') && wasTaskDrag) {
@@ -897,32 +663,38 @@ export default function KanbanBoard({
     
     // Handle column reordering
     if (type === 'COLUMN') {
-      if (destination.index === source.index) return;
+      if (destination.index === source.index) {
+        return;
+      }
       
       const newColumnOrder = Array.from(columnOrder);
       const [reorderedColumn] = newColumnOrder.splice(source.index, 1);
       newColumnOrder.splice(destination.index, 0, reorderedColumn);
       
       setColumnOrder(newColumnOrder);
-      toast.success('Column order changed');
       return;
     }
     
-    // Handle task movement (existing logic) - only if it was a task drag
-    if (!wasTaskDrag) return;
-    if (destination.droppableId === source.droppableId) return;
+    // Handle task movement - only if it was a task drag
+    if (!wasTaskDrag) {
+      return;
+    }
+    
+    // If same position, do nothing
+    if (destination.droppableId === source.droppableId && destination.index === source.index) {
+      return;
+    }
     
     // Find task or subtask
     let task = tasks.find((t) => t.id === draggableId);
     let isSubtask = false;
     let parentTaskId = null;
-    console.log('Found task:', task);
+    
     if (!task) {
       for (const t of tasks) {
         if (t.subtasks) {
           const st = t.subtasks.find((st: any) => st.id === draggableId);
           if (st) {
-            // Inherit missing fields from parent for type safety
             task = { ...t, ...st };
             isSubtask = true;
             parentTaskId = t.id;
@@ -931,87 +703,51 @@ export default function KanbanBoard({
         }
       }
     }
-    if (!task) return;
+    
+    if (!task) {
+      return;
+    }
+    
+    // Check if transition is valid
     if (!isValidTransition(task.status, destination.droppableId)) {
       toast.error(`Cannot move task from ${task.status} to ${destination.droppableId}`);
       return;
     }
-
-    // Automatically collapse subtasks when moving
-    if (isSubtask && parentTaskId) {
-      // If moving subtask, collapse parent task's subtasks
-      setExpandedSubtasks(prev => ({ ...prev, [parentTaskId]: false }));
-    } else if (!isSubtask && task.subtasks && task.subtasks.length > 0) {
-      // If moving main task with subtasks, collapse its subtasks
-      setExpandedSubtasks(prev => ({ ...prev, [task.id]: false }));
-    }
-
+    
+    // Ultra-fast task status update
+    const newStatus = destination.droppableId;
+    
     if (isSubtask) {
-      setTasks(prev => prev.map(t => ({
-        ...t,
-        subtasks: t.subtasks ? t.subtasks.map((st: any) => st.id === draggableId ? { ...st, status: destination.droppableId } : st) : [],
-      })));
-      // Notify parent about updated subtask
-      if (onTaskUpdate) {
-        const updatedSubtask = { ...task, status: destination.droppableId };
-        console.log('KanbanBoard: calling onTaskUpdate for subtask with:', updatedSubtask);
-        onTaskUpdate(updatedSubtask);
-      }
+      setTasks(prev => 
+        prev.map(t => ({
+          ...t,
+          subtasks: t.subtasks ? t.subtasks.map((st: any) => 
+            st.id === draggableId ? { ...st, status: newStatus } : st
+          ) : [],
+        }))
+      );
     } else {
-      setTasks(prev => prev.map(t => t.id === draggableId ? { ...t, status: destination.droppableId } : t));
-      // Notify parent about updated task
-      if (onTaskUpdate) {
-        const updatedTask = { ...task, status: destination.droppableId };
-        console.log('KanbanBoard: calling onTaskUpdate with:', updatedTask);
-        onTaskUpdate(updatedTask);
-      }
+      setTasks(prev => 
+        prev.map(t => 
+          t.id === draggableId ? { ...t, status: newStatus } : t
+        )
+      );
     }
-    toast.success(`Task moved to ${destination.droppableId}`);
+    
+    // Immediate state reset
+    setIsDragging(false);
+    setDraggedTask(null);
+    
+    // Callback after state update
+    if (onTaskUpdate) {
+      const updatedTask = { ...task, status: newStatus };
+      onTaskUpdate(updatedTask);
+    }
   };
 
-  // Preview handlers
-  const handlePreviewHover = useCallback((columnId: string) => {
-    // Only scroll on hover if we're actually dragging a task
-    if (draggedTask) {
-      scrollToColumn(columnId);
-    }
-  }, [draggedTask, scrollToColumn]);
 
-  const handlePreviewDrop = useCallback((columnId: string) => {
-    // Will be handled by onDragEnd
-  }, []);
 
-  // Add useEffect for viewport detection with debouncing
-  useEffect(() => {
-    if (!containerRef.current) return;
-    
-    const container = containerRef.current;
-    let scrollTimeout: NodeJS.Timeout;
-    
-    const handleScroll = () => {
-      clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        detectVisibleColumns();
-      }, 100); // Increased debounce to reduce interference
-    };
-    
-    const handleResize = () => {
-      setTimeout(() => detectVisibleColumns(), 100);
-    };
-    
-    // Use passive listeners to improve performance
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleResize, { passive: true });
-    
-    // Initial detection with delay to ensure DOM is ready
-    setTimeout(() => detectVisibleColumns(), 200);
-    
-    return () => {
-      clearTimeout(scrollTimeout);
-      container.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [detectVisibleColumns]);
+
 
   // Card rendering
   function renderCard(task: any, isSubtask = false) {
@@ -1020,6 +756,7 @@ export default function KanbanBoard({
     const showComments = cardFields.comments;
     const isSimple = !showSubtasks && !showAttachments && !showComments;
     const subtasksCount = task.subtasks?.length || 0;
+    
     return (
       <Draggable key={task.id} draggableId={task.id} index={parseInt(task.id.replace(/\D/g, ""))}>
         {(provided, snapshot) => (
@@ -1027,23 +764,24 @@ export default function KanbanBoard({
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className="mb-2"
-            style={provided.draggableProps.style}
+            className="mb-2 relative"
+                              style={{
+                    ...provided.draggableProps.style,
+                  }}
           >
             <div
               className={`${snapshot.isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-              style={{
-                transform: snapshot.isDragging ? 'scale(0.95) rotate(3deg)' : 'none',
-                transition: snapshot.isDragging ? 'none' : 'transform 0.15s cubic-bezier(0.2, 0, 0, 1)',
-                position: 'relative',
-                zIndex: snapshot.isDragging ? 1000 : 'auto',
-              }}
+                                style={{
+                    marginBottom: '8px',
+                  }}
             >
-              <Card className={`border-[#e8e8ec] rounded-2xl transition-all duration-150 ease-out w-full ${
+              <Card className={`kanban-card group border-[#e8e8ec] rounded-2xl transition-all duration-200 ease-out w-full ${
                 snapshot.isDragging 
-                  ? 'shadow-xl shadow-black/20 border-blue-300' 
+                  ? 'dragging shadow-xl shadow-black/20 border-blue-300' 
                   : 'shadow-none hover:shadow-lg hover:shadow-black/15 hover:border-gray-300'
-              }`}>
+              }`}
+>
+
               <CardContent className={`${isSimple ? "p-3" : "p-4"} ${task.isSubtaskInFlat ? "bg-blue-50/30 border-l-4 border-l-blue-400" : ""}`}>
 
 
@@ -1062,6 +800,7 @@ export default function KanbanBoard({
                       </svg>
                     )}
                     <span>{task.taskId}</span>
+
                   </div>
                 )}
                 {/* Title (Name) */}
@@ -1069,6 +808,7 @@ export default function KanbanBoard({
                   <div 
                     className="text-base font-semibold text-[#1c2024] mb-1 cursor-pointer hover:text-blue-600 transition-colors"
                     onClick={() => onTaskClick && onTaskClick(task)}
+
                   >
                     {task.title}
                   </div>
@@ -1231,7 +971,7 @@ export default function KanbanBoard({
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-full w-full relative">
+      <div className="flex flex-col h-full w-full relative kanban-board-container">
         {/* Kanban scroll area with padding */}
         <div className="flex-1 px-4 pt-4 pb-4">
           <style>{`
@@ -1259,42 +999,132 @@ export default function KanbanBoard({
             .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar-track {
               background: transparent;
             }
+            
+            /* Improved drag animations */
+            .kanban-card {
+              transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+              will-change: transform, box-shadow;
+              transform-origin: center;
+            }
+            
+            .kanban-card:hover {
+              transform: translateY(-0.5px);
+            }
+            
+            .kanban-card.dragging {
+              transform: scale(0.98);
+              box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.15);
+              z-index: 1000;
+              pointer-events: none;
+              border: 2px solid rgb(59, 130, 246);
+            }
+            
+            .kanban-column {
+              transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            
+            .kanban-column.dragging {
+              opacity: 0.9;
+              transform: scale(1.01);
+            }
+            
+            /* Smooth drop zone animations */
+            .drop-zone {
+              transition: all 0.05s ease-out;
+              position: relative;
+              min-height: 100px;
+            }
+            
+            /* Jira-style highlighting for valid drop zones */
+            .drop-zone:not(.drop-disabled) {
+              background-color: rgba(59, 130, 246, 0.05);
+              border-color: rgba(59, 130, 246, 0.2);
+            }
+            
+            .drop-zone.drag-over {
+              background-color: rgba(59, 130, 246, 0.2);
+              border-color: rgb(59, 130, 246);
+              box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+              transform: scale(1.01);
+            }
+            
+            .drop-zone.drop-disabled {
+              opacity: 0.3;
+              cursor: not-allowed;
+              background-color: rgba(0, 0, 0, 0.05);
+              border-color: rgba(0, 0, 0, 0.1);
+              filter: grayscale(50%);
+            }
+            
+            /* Prevent text selection during drag */
+            .dragging * {
+              user-select: none;
+              -webkit-user-select: none;
+              -moz-user-select: none;
+              -ms-user-select: none;
+            }
+            
+            /* Fix for hanging cards */
+
+            
+                          /* Completely hide placeholder */
+              [data-rbd-placeholder-context-id] {
+                display: none !important;
+                min-height: 0 !important;
+                background: transparent !important;
+                opacity: 0 !important;
+                height: 0 !important;
+                width: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+              }
+            
+            /* Preview zones styling */
+            .preview-zone {
+              position: fixed;
+              z-index: 1001;
+              pointer-events: auto;
+            }
+            
+            .preview-card {
+              transition: all 0.15s ease-out;
+              cursor: pointer;
+            }
+            
+            .preview-card:hover {
+              transform: scale(1.02);
+            }
+            
+            .preview-card.drag-over {
+              background-color: rgba(59, 130, 246, 0.2);
+              border-color: rgb(59, 130, 246);
+              transform: scale(1.05);
+            }
           `}</style>
           <div
             className="group relative"
             onMouseEnter={e => e.currentTarget.classList.add('kanban-scroll-hover')}
             onMouseLeave={e => e.currentTarget.classList.remove('kanban-scroll-hover')}
           >
-            <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-              {/* Smart Preview Zones - only show during task drag, not column drag */}
-              {draggedTask && (
-                <SmartPreviewZones
-                  isDragging={isDragging}
-                  draggedTask={draggedTask}
-                  viewportInfo={viewportInfo}
-                  tasks={tasks}
-                  getColumnTasks={getColumnTasks}
-                  onPreviewHover={handlePreviewHover}
-                  onPreviewDrop={handlePreviewDrop}
-                  onAutoScroll={autoScroll}
-                />
-              )}
+            <DragDropContext 
+              onDragStart={onDragStart} 
+              onDragEnd={onDragEnd}
+            >
+
               
               {/* Droppable area for columns */}
               <Droppable droppableId="board" type="COLUMN" direction="horizontal">
                 {(provided) => (
                   <div
-                    ref={(el) => {
-                      provided.innerRef(el);
-                      containerRef.current = el;
-                    }}
+                    ref={provided.innerRef}
                     {...provided.droppableProps}
                     className="kanban-scrollbar flex gap-3 min-h-[700px] overflow-x-auto horizontal-hover-scrollbar"
                     style={{overflowY: 'hidden', position: 'relative'}}
                   >
                     {orderedStatuses.map((column, index) => {
                       const columnTasks = getColumnTasks(column.id);
-                      const isDropDisabled = !!(draggedTask && !isValidTransition(draggedTask.status, column.id));
+                      // Only disable drop if we have a dragged task and the transition is not valid
+                      const isDropDisabled = draggedTask ? !isValidTransition(draggedTask.status, column.id) : false;
                       const isCollapsed = collapsed[column.id];
                       const groupColor = statusColorMap[column.id] || "bg-white border-gray-200";
 
@@ -1304,7 +1134,7 @@ export default function KanbanBoard({
                             <div
                               ref={dragProvided.innerRef}
                               {...dragProvided.draggableProps}
-                              className={`${dragSnapshot.isDragging ? 'opacity-75 rotate-2 scale-105' : ''} transition-all duration-150`}
+                              className={`kanban-column ${dragSnapshot.isDragging ? 'dragging' : ''} transition-all duration-200`}
                               data-column-id={column.id}
                             >
                               <Droppable
@@ -1317,7 +1147,7 @@ export default function KanbanBoard({
                                     <div
                                       ref={provided.innerRef}
                                       {...provided.droppableProps}
-                                      className={`flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-[300px] rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${isDropDisabled && draggedTask ? "opacity-50 cursor-not-allowed border-dashed" : ""}`}
+                                      className={`drop-zone flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-[300px] rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${snapshot.isDraggingOver ? 'drag-over' : ''} ${isDropDisabled && draggedTask ? "drop-disabled" : ""}`}
                                       onClick={() => setCollapsed(c => ({ ...c, [column.id]: false }))}
                                     >
                                       {/* Drag handle for collapsed column */}
@@ -1351,14 +1181,21 @@ export default function KanbanBoard({
                                     <div
                                       ref={provided.innerRef}
                                       {...provided.droppableProps}
-                                      className={`flex flex-col min-w-[396px] max-w-[496px] h-[calc(100vh-160px)] rounded-lg border p-0 transition-opacity relative ${
+                                      className={`drop-zone flex flex-col min-w-[396px] max-w-[496px] h-[calc(100vh-160px)] rounded-lg border p-0 transition-all duration-200 relative ${
                                         groupColor
                                       } ${
+                                        snapshot.isDraggingOver ? 'drag-over' : ''
+                                      } ${
                                         isDropDisabled && draggedTask
-                                          ? "opacity-50 cursor-not-allowed border-dashed"
+                                          ? "drop-disabled"
                                           : ""
                                       }`}
+                                      style={{
+                                        borderWidth: snapshot.isDraggingOver ? '2px' : '1px',
+                                        borderStyle: 'solid',
+                                      }}
                                     >
+
                                       <div className="relative group">
                                         {/* Drag handle for expanded column - positioned at top */}
                                         <div 
@@ -1372,6 +1209,7 @@ export default function KanbanBoard({
                                           <div className="flex items-center gap-2">
                                             <h3 className="font-medium text-base text-[#1c2024]">{column.title}</h3>
                                             <Badge className="text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center">{columnTasks.length}</Badge>
+
                                           </div>
                                           <div className="flex items-center gap-2">
                                             {/* Collapse button (only on hover) */}
