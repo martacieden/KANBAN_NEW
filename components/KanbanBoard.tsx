@@ -531,41 +531,46 @@ const useViewportDetection = (columnOrder: string[], containerRef: React.RefObje
   const detectVisibleColumns = useCallback(() => {
     if (!containerRef.current) return;
 
-    const container = containerRef.current;
-    const containerRect = container.getBoundingClientRect();
-    const scrollLeft = container.scrollLeft;
-    
-    const visibleColumns: string[] = [];
-    const hiddenLeft: string[] = [];
-    const hiddenRight: string[] = [];
-
-    columnOrder.forEach((columnId) => {
-      const columnElement = container.querySelector(`[data-column-id="${columnId}"]`);
-      if (!columnElement) return;
-
-      const columnRect = columnElement.getBoundingClientRect();
-      const containerLeft = containerRect.left;
-      const containerRight = containerRect.right;
+    try {
+      const container = containerRef.current;
+      const containerRect = container.getBoundingClientRect();
+      const scrollLeft = container.scrollLeft;
       
-      // Column is visible if at least part of it is in viewport
-      const isVisible = columnRect.right > containerLeft + 10 && columnRect.left < containerRight - 10;
-      
-      if (isVisible) {
-        visibleColumns.push(columnId);
-      } else if (columnRect.right <= containerLeft + 10) {
-        hiddenLeft.push(columnId);
-      } else if (columnRect.left >= containerRight - 10) {
-        hiddenRight.push(columnId);
-      }
-    });
+      const visibleColumns: string[] = [];
+      const hiddenLeft: string[] = [];
+      const hiddenRight: string[] = [];
 
-    setViewportInfo({
-      visibleColumns,
-      hiddenLeft,
-      hiddenRight,
-      scrollPosition: scrollLeft,
-      containerWidth: containerRect.width
-    });
+      columnOrder.forEach((columnId) => {
+        const columnElement = container.querySelector(`[data-column-id="${columnId}"]`);
+        if (!columnElement) return;
+
+        const columnRect = columnElement.getBoundingClientRect();
+        const containerLeft = containerRect.left;
+        const containerRight = containerRect.right;
+        
+        // Column is visible if at least part of it is in viewport
+        // Use more generous margins to prevent columns from being marked as hidden too easily
+        const isVisible = columnRect.right > containerLeft + 100 && columnRect.left < containerRight - 100;
+        
+        if (isVisible) {
+          visibleColumns.push(columnId);
+        } else if (columnRect.right <= containerLeft + 100) {
+          hiddenLeft.push(columnId);
+        } else if (columnRect.left >= containerRight - 100) {
+          hiddenRight.push(columnId);
+        }
+      });
+
+      setViewportInfo({
+        visibleColumns,
+        hiddenLeft,
+        hiddenRight,
+        scrollPosition: scrollLeft,
+        containerWidth: containerRect.width
+      });
+    } catch (error) {
+      console.warn('Error detecting visible columns:', error);
+    }
   }, [columnOrder]);
 
   return { viewportInfo, detectVisibleColumns };
@@ -576,37 +581,53 @@ const useAutoScroll = (containerRef: React.RefObject<HTMLDivElement | null>) => 
   const scrollToColumn = useCallback((columnId: string) => {
     if (!containerRef.current) return;
     
-    const container = containerRef.current;
-    const columnElement = container.querySelector(`[data-column-id="${columnId}"]`);
-    
-    if (columnElement) {
-      const containerRect = container.getBoundingClientRect();
-      const columnRect = columnElement.getBoundingClientRect();
+    try {
+      const container = containerRef.current;
+      const columnElement = container.querySelector(`[data-column-id="${columnId}"]`);
       
-      // Calculate scroll position to center the column in viewport
-      const columnCenter = columnRect.left - containerRect.left + columnRect.width / 2;
-      const containerCenter = containerRect.width / 2;
-      const scrollOffset = container.scrollLeft + columnCenter - containerCenter;
-      
-      container.scrollTo({
-        left: Math.max(0, Math.min(scrollOffset, container.scrollWidth - container.clientWidth)),
-        behavior: 'smooth'
-      });
+      if (columnElement) {
+        const containerRect = container.getBoundingClientRect();
+        const columnRect = columnElement.getBoundingClientRect();
+        
+        // Only scroll if column is actually hidden
+        const isVisible = columnRect.right > containerRect.left + 100 && columnRect.left < containerRect.right - 100;
+        
+        if (!isVisible) {
+          // Calculate scroll position to center the column in viewport
+          const columnCenter = columnRect.left - containerRect.left + columnRect.width / 2;
+          const containerCenter = containerRect.width / 2;
+          const scrollOffset = container.scrollLeft + columnCenter - containerCenter;
+          
+          container.scrollTo({
+            left: Math.max(0, Math.min(scrollOffset, container.scrollWidth - container.clientWidth)),
+            behavior: 'smooth'
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('Error scrolling to column:', error);
     }
   }, []);
 
   const autoScroll = useCallback((direction: 'left' | 'right') => {
     if (!containerRef.current) return;
     
-    const container = containerRef.current;
-    const scrollAmount = 200; // pixels per scroll
-    const currentScroll = container.scrollLeft;
-    
-    const newScroll = direction === 'left' 
-      ? Math.max(0, currentScroll - scrollAmount)
-      : Math.min(container.scrollWidth - container.clientWidth, currentScroll + scrollAmount);
+    try {
+      const container = containerRef.current;
+      const scrollAmount = 300; // pixels per scroll
+      const currentScroll = container.scrollLeft;
       
-    container.scrollLeft = newScroll;
+      const newScroll = direction === 'left' 
+        ? Math.max(0, currentScroll - scrollAmount)
+        : Math.min(container.scrollWidth - container.clientWidth, currentScroll + scrollAmount);
+        
+      container.scrollTo({
+        left: newScroll,
+        behavior: 'smooth'
+      });
+    } catch (error) {
+      console.warn('Error auto-scrolling:', error);
+    }
   }, []);
 
   return { scrollToColumn, autoScroll };
@@ -686,7 +707,9 @@ const SmartPreviewZones: React.FC<{
   // Show all columns (both hidden left and right) in the right preview zone
   const allHiddenColumns = [...viewportInfo.hiddenLeft, ...viewportInfo.hiddenRight];
   
-  if (!isDragging || allHiddenColumns.length === 0) {
+  // Only show preview if there are actually hidden columns and we're dragging
+  // Also ensure we have a valid dragged task
+  if (!isDragging || !draggedTask || allHiddenColumns.length === 0) {
     return null;
   }
 
@@ -829,7 +852,8 @@ export default function KanbanBoard({
     setIsDragging(true);
     
     if (start.type === 'COLUMN') {
-      // Column drag started
+      // Column drag started - don't set dragged task
+      setDraggedTask(null);
       return;
     }
     
@@ -848,20 +872,25 @@ export default function KanbanBoard({
       }
     }
     
-    if (task) setDraggedTask(task);
+    if (task) {
+      setDraggedTask(task);
+    } else {
+      setDraggedTask(null);
+    }
   };
 
   const onDragEnd = (result: DropResult) => {
     setIsDragging(false);
+    const wasTaskDrag = draggedTask !== null;
     setDraggedTask(null);
     
     const { destination, source, draggableId, type } = result;
-    console.log('onDragEnd called:', { destination, source, draggableId, type });
+    console.log('onDragEnd called:', { destination, source, draggableId, type, wasTaskDrag });
     
     if (!destination) return;
     
-    // Handle preview drops
-    if (destination.droppableId.startsWith('preview-')) {
+    // Handle preview drops - only for task drags
+    if (destination.droppableId.startsWith('preview-') && wasTaskDrag) {
       const columnId = destination.droppableId.replace('preview-', '');
       destination.droppableId = columnId;
     }
@@ -879,7 +908,8 @@ export default function KanbanBoard({
       return;
     }
     
-    // Handle task movement (existing logic)
+    // Handle task movement (existing logic) - only if it was a task drag
+    if (!wasTaskDrag) return;
     if (destination.droppableId === source.droppableId) return;
     
     // Find task or subtask
@@ -940,13 +970,16 @@ export default function KanbanBoard({
   };
 
   // Preview handlers
-  const handlePreviewHover = (columnId: string) => {
-    scrollToColumn(columnId);
-  };
+  const handlePreviewHover = useCallback((columnId: string) => {
+    // Only scroll on hover if we're actually dragging a task
+    if (draggedTask) {
+      scrollToColumn(columnId);
+    }
+  }, [draggedTask, scrollToColumn]);
 
-  const handlePreviewDrop = (columnId: string) => {
+  const handlePreviewDrop = useCallback((columnId: string) => {
     // Will be handled by onDragEnd
-  };
+  }, []);
 
   // Add useEffect for viewport detection with debouncing
   useEffect(() => {
@@ -959,16 +992,19 @@ export default function KanbanBoard({
       clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         detectVisibleColumns();
-      }, 50); // Debounce scroll events
+      }, 100); // Increased debounce to reduce interference
     };
     
-    const handleResize = () => detectVisibleColumns();
+    const handleResize = () => {
+      setTimeout(() => detectVisibleColumns(), 100);
+    };
     
-    container.addEventListener('scroll', handleScroll);
-    window.addEventListener('resize', handleResize);
+    // Use passive listeners to improve performance
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
     
-    // Initial detection
-    detectVisibleColumns();
+    // Initial detection with delay to ensure DOM is ready
+    setTimeout(() => detectVisibleColumns(), 200);
     
     return () => {
       clearTimeout(scrollTimeout);
@@ -1230,17 +1266,19 @@ export default function KanbanBoard({
             onMouseLeave={e => e.currentTarget.classList.remove('kanban-scroll-hover')}
           >
             <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-              {/* Smart Preview Zones */}
-              <SmartPreviewZones
-                isDragging={isDragging}
-                draggedTask={draggedTask}
-                viewportInfo={viewportInfo}
-                tasks={tasks}
-                getColumnTasks={getColumnTasks}
-                onPreviewHover={handlePreviewHover}
-                onPreviewDrop={handlePreviewDrop}
-                onAutoScroll={autoScroll}
-              />
+              {/* Smart Preview Zones - only show during task drag, not column drag */}
+              {draggedTask && (
+                <SmartPreviewZones
+                  isDragging={isDragging}
+                  draggedTask={draggedTask}
+                  viewportInfo={viewportInfo}
+                  tasks={tasks}
+                  getColumnTasks={getColumnTasks}
+                  onPreviewHover={handlePreviewHover}
+                  onPreviewDrop={handlePreviewDrop}
+                  onAutoScroll={autoScroll}
+                />
+              )}
               
               {/* Droppable area for columns */}
               <Droppable droppableId="board" type="COLUMN" direction="horizontal">
