@@ -353,6 +353,28 @@ export default function Page() {
                           <Kanban className="w-5 h-5" />
                         </Button>
                       </div>
+                      {view === 'kanban' && (
+                        <>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => (window as any).kanbanExpandAll?.()}
+                            className="text-[#60646c] hover:text-[#1c2024]"
+                            title="Expand all groups"
+                          >
+                            Expand all
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => (window as any).kanbanCollapseAll?.()}
+                            className="text-[#60646c] hover:text-[#1c2024]"
+                            title="Collapse all groups"
+                          >
+                            Collapse all
+                          </Button>
+                        </>
+                      )}
                       <Button variant="ghost" size="sm" className="text-[#60646c]">
                         <Share className="w-4 h-4 mr-2" />
                         Share
@@ -653,10 +675,10 @@ function TaskTable({ tasks, cardFields, onTaskClick, onTaskUpdate, tableFields, 
     const diff = e.clientX - startX;
     const newWidth = Math.max(50, startWidth + diff); // Мінімальна ширина 50px
     
-    setColumnWidths((prev: Record<string, number>) => ({
-      ...prev,
+    setColumnWidths({
+      ...columnWidths,
       [resizingColumn]: newWidth
-    }));
+    });
   };
 
   const handleMouseUp = () => {

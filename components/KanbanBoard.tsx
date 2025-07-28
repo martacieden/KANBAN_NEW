@@ -1,16 +1,34 @@
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Settings, X, Search, ChevronLeft, ChevronUp, Clock, ChevronDown as ChevronDownIcon, Layers, Paperclip, MessageCircle, MoreHorizontal, Flag } from "lucide-react";
+import { ChevronDown, ChevronRight, Settings, X, Search, ChevronLeft, ChevronUp, Clock, ChevronDown as ChevronDownIcon, Layers, Paperclip, MessageCircle, MoreHorizontal, Flag, Expand, Minimize2, GripVertical } from "lucide-react";
 import { Paperclip as PaperclipIcon, MessageCircle as MessageCircleIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import TaskPreview from "./TaskPreview";
+import React from "react";
+
+// Types for Smart Preview functionality
+interface ViewportInfo {
+  visibleColumns: string[];
+  hiddenLeft: string[];
+  hiddenRight: string[];
+  scrollPosition: number;
+  containerWidth: number;
+}
+
+interface ColumnPreview {
+  id: string;
+  title: string;
+  taskCount: number;
+  color: string;
+  index: number;
+}
 
 const STATUSES = [
   { id: "To do", title: "To do", color: "bg-blue-50 border-blue-200" },
@@ -500,6 +518,206 @@ function generateColorFromText(text: string): string {
   return colors[index];
 }
 
+// Hook for detecting visible and hidden columns
+const useViewportDetection = (columnOrder: string[], containerRef: React.RefObject<HTMLDivElement | null>) => {
+  const [viewportInfo, setViewportInfo] = useState<ViewportInfo>({
+    visibleColumns: [],
+    hiddenLeft: [],
+    hiddenRight: [],
+    scrollPosition: 0,
+    containerWidth: 0
+  });
+
+  const detectVisibleColumns = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const container = containerRef.current;
+    const containerRect = container.getBoundingClientRect();
+    const scrollLeft = container.scrollLeft;
+    
+    const visibleColumns: string[] = [];
+    const hiddenLeft: string[] = [];
+    const hiddenRight: string[] = [];
+
+    columnOrder.forEach((columnId) => {
+      const columnElement = container.querySelector(`[data-column-id="${columnId}"]`);
+      if (!columnElement) return;
+
+      const columnRect = columnElement.getBoundingClientRect();
+      const containerLeft = containerRect.left;
+      const containerRight = containerRect.right;
+      
+      // Column is visible if at least part of it is in viewport
+      const isVisible = columnRect.right > containerLeft + 10 && columnRect.left < containerRight - 10;
+      
+      if (isVisible) {
+        visibleColumns.push(columnId);
+      } else if (columnRect.right <= containerLeft + 10) {
+        hiddenLeft.push(columnId);
+      } else if (columnRect.left >= containerRight - 10) {
+        hiddenRight.push(columnId);
+      }
+    });
+
+    setViewportInfo({
+      visibleColumns,
+      hiddenLeft,
+      hiddenRight,
+      scrollPosition: scrollLeft,
+      containerWidth: containerRect.width
+    });
+  }, [columnOrder]);
+
+  return { viewportInfo, detectVisibleColumns };
+};
+
+// Hook for auto-scroll functionality
+const useAutoScroll = (containerRef: React.RefObject<HTMLDivElement | null>) => {
+  const scrollToColumn = useCallback((columnId: string) => {
+    if (!containerRef.current) return;
+    
+    const container = containerRef.current;
+    const columnElement = container.querySelector(`[data-column-id="${columnId}"]`);
+    
+    if (columnElement) {
+      const containerRect = container.getBoundingClientRect();
+      const columnRect = columnElement.getBoundingClientRect();
+      
+      // Calculate scroll position to center the column in viewport
+      const columnCenter = columnRect.left - containerRect.left + columnRect.width / 2;
+      const containerCenter = containerRect.width / 2;
+      const scrollOffset = container.scrollLeft + columnCenter - containerCenter;
+      
+      container.scrollTo({
+        left: Math.max(0, Math.min(scrollOffset, container.scrollWidth - container.clientWidth)),
+        behavior: 'smooth'
+      });
+    }
+  }, []);
+
+  const autoScroll = useCallback((direction: 'left' | 'right') => {
+    if (!containerRef.current) return;
+    
+    const container = containerRef.current;
+    const scrollAmount = 200; // pixels per scroll
+    const currentScroll = container.scrollLeft;
+    
+    const newScroll = direction === 'left' 
+      ? Math.max(0, currentScroll - scrollAmount)
+      : Math.min(container.scrollWidth - container.clientWidth, currentScroll + scrollAmount);
+      
+    container.scrollLeft = newScroll;
+  }, []);
+
+  return { scrollToColumn, autoScroll };
+};
+
+// Preview Column Card Component
+const PreviewColumnCard: React.FC<{
+  columnId: string;
+  tasks: any[];
+  draggedTask: any;
+  onHover: () => void;
+  onDrop: () => void;
+  isHovered: boolean;
+  setHovered: (id: string | null) => void;
+}> = ({ columnId, tasks, draggedTask, onHover, onDrop, isHovered, setHovered }) => {
+  
+  const column = STATUSES.find(s => s.id === columnId);
+  const canDrop = draggedTask ? isValidTransition(draggedTask.status, columnId) : false;
+
+  return (
+    <Droppable droppableId={`preview-${columnId}`} isDropDisabled={!canDrop}>
+      {(provided, snapshot) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.droppableProps}
+          className={`
+            p-3 rounded-lg border-2 transition-all duration-150 min-h-[60px] flex items-center justify-between
+            ${canDrop 
+              ? 'border-blue-300 bg-blue-50 hover:bg-blue-100 cursor-pointer' 
+              : 'border-gray-300 bg-gray-100 opacity-60 cursor-not-allowed'
+            }
+            ${snapshot.isDraggingOver ? 'border-blue-500 bg-blue-100 scale-105' : ''}
+            ${isHovered && canDrop ? 'ring-2 ring-blue-300' : ''}
+          `}
+          onMouseEnter={() => {
+            if (canDrop) {
+              setHovered(columnId);
+              onHover();
+            }
+          }}
+          onMouseLeave={() => setHovered(null)}
+        >
+          <div className="flex-1">
+            <h4 className={`font-medium text-sm ${canDrop ? 'text-gray-900' : 'text-gray-500'}`}>
+              {column?.title}
+            </h4>
+            <div className={`text-xs mt-1 ${canDrop ? 'text-blue-600' : 'text-gray-400'}`}>
+              {canDrop ? 'Drop task here' : 'Cannot move here'}
+            </div>
+          </div>
+          
+          <Badge className={`text-xs px-2 py-0.5 h-6 ${canDrop ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-600'}`}>
+            {tasks.length}
+          </Badge>
+          
+          {provided.placeholder}
+        </div>
+      )}
+    </Droppable>
+  );
+};
+
+// Smart Preview Zones Component
+const SmartPreviewZones: React.FC<{
+  isDragging: boolean;
+  draggedTask: any;
+  viewportInfo: ViewportInfo;
+  tasks: any[];
+  getColumnTasks: (status: string) => any[];
+  onPreviewHover: (columnId: string) => void;
+  onPreviewDrop: (columnId: string) => void;
+  onAutoScroll: (direction: 'left' | 'right') => void;
+}> = ({ isDragging, draggedTask, viewportInfo, tasks, getColumnTasks, onPreviewHover, onPreviewDrop, onAutoScroll }) => {
+  
+  const [hoveredPreview, setHoveredPreview] = useState<string | null>(null);
+
+  // Show all columns (both hidden left and right) in the right preview zone
+  const allHiddenColumns = [...viewportInfo.hiddenLeft, ...viewportInfo.hiddenRight];
+  
+  if (!isDragging || allHiddenColumns.length === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      className="fixed right-4 top-1/2 transform -translate-y-1/2 z-50 
+                 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg 
+                 shadow-lg p-3 w-72 transition-all duration-200 max-h-[70vh] overflow-y-auto"
+    >
+      <div className="text-xs font-medium text-gray-600 mb-3 flex items-center gap-2">
+        <Layers className="w-4 h-4" />
+        Available columns ({allHiddenColumns.length})
+      </div>
+      <div className="space-y-2">
+        {allHiddenColumns.map(columnId => (
+          <PreviewColumnCard
+            key={columnId}
+            columnId={columnId}
+            tasks={getColumnTasks(columnId)}
+            draggedTask={draggedTask}
+            onHover={() => onPreviewHover(columnId)}
+            onDrop={() => onPreviewDrop(columnId)}
+            isHovered={hoveredPreview === columnId}
+            setHovered={setHoveredPreview}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function KanbanBoard({
   showSettings: showSettingsProp,
   setShowSettings: setShowSettingsProp,
@@ -507,6 +725,8 @@ export default function KanbanBoard({
   setCardFields: setCardFieldsProp,
   onTaskClick,
   onTaskUpdate,
+  onExpandAll,
+  onCollapseAll,
 }: {
   showSettings?: boolean,
   setShowSettings?: (v: boolean) => void,
@@ -514,10 +734,17 @@ export default function KanbanBoard({
   setCardFields?: (v: Record<string, boolean>) => void,
   onTaskClick?: (task: any) => void,
   onTaskUpdate?: (updatedTask: any) => void,
+  onExpandAll?: () => void,
+  onCollapseAll?: () => void,
 }) {
   const [tasks, setTasks] = useState(initialTasks);
-  const [draggedTask, setDraggedTask] = useState<null | { id: string; status: string }>(null);
+  const [draggedTask, setDraggedTask] = useState<null | any>(null);
   const [internalShowSettings, internalSetShowSettings] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  // Refs for Smart Preview functionality
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   const showSettings = showSettingsProp !== undefined ? showSettingsProp : internalShowSettings;
   const setShowSettings = setShowSettingsProp || internalSetShowSettings;
   const [settingsSearch, setSettingsSearch] = useState("");
@@ -535,7 +762,27 @@ export default function KanbanBoard({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [expandedSubtasks, setExpandedSubtasks] = useState<Record<string, boolean>>({});
   const [columnMenuOpen, setColumnMenuOpen] = useState<Record<string, boolean>>({});
-  // Видаляю selectedTask, setSelectedTask
+  
+  // New state for column order
+  const [columnOrder, setColumnOrder] = useState<string[]>([
+    "Acknowledged", 
+    "To do", 
+    "In Progress", 
+    "Needs Work", 
+    "Verified", 
+    "Paused", 
+    "Blocked", 
+    "Done"
+  ]);
+
+  // Initialize Smart Preview hooks
+  const { viewportInfo, detectVisibleColumns } = useViewportDetection(columnOrder, containerRef);
+  const { scrollToColumn, autoScroll } = useAutoScroll(containerRef);
+
+  // Get ordered statuses based on current order
+  const orderedStatuses = useMemo(() => {
+    return columnOrder.map(id => STATUSES.find(s => s.id === id)).filter(Boolean) as typeof STATUSES;
+  }, [columnOrder]);
 
   // Search filter
   const filteredTasks = useMemo(() => {
@@ -577,18 +824,64 @@ export default function KanbanBoard({
     }
   }
 
-  // Drag logic
+  // Updated drag logic to handle both tasks and columns
   const onDragStart = (start: any) => {
-    const task = tasks.find((t) => t.id === start.draggableId);
+    setIsDragging(true);
+    
+    if (start.type === 'COLUMN') {
+      // Column drag started
+      return;
+    }
+    
+    // Task drag started - find main task or subtask
+    let task = tasks.find((t) => t.id === start.draggableId);
+    if (!task) {
+      // Check if it's a subtask
+      for (const t of tasks) {
+        if (t.subtasks) {
+          const st = t.subtasks.find((st: any) => st.id === start.draggableId);
+          if (st) {
+            task = { ...t, ...st };
+            break;
+          }
+        }
+      }
+    }
+    
     if (task) setDraggedTask(task);
   };
 
   const onDragEnd = (result: DropResult) => {
+    setIsDragging(false);
     setDraggedTask(null);
-    const { destination, source, draggableId } = result;
-    console.log('onDragEnd called:', { destination, source, draggableId });
+    
+    const { destination, source, draggableId, type } = result;
+    console.log('onDragEnd called:', { destination, source, draggableId, type });
+    
     if (!destination) return;
+    
+    // Handle preview drops
+    if (destination.droppableId.startsWith('preview-')) {
+      const columnId = destination.droppableId.replace('preview-', '');
+      destination.droppableId = columnId;
+    }
+    
+    // Handle column reordering
+    if (type === 'COLUMN') {
+      if (destination.index === source.index) return;
+      
+      const newColumnOrder = Array.from(columnOrder);
+      const [reorderedColumn] = newColumnOrder.splice(source.index, 1);
+      newColumnOrder.splice(destination.index, 0, reorderedColumn);
+      
+      setColumnOrder(newColumnOrder);
+      toast.success('Column order changed');
+      return;
+    }
+    
+    // Handle task movement (existing logic)
     if (destination.droppableId === source.droppableId) return;
+    
     // Find task or subtask
     let task = tasks.find((t) => t.id === draggableId);
     let isSubtask = false;
@@ -614,12 +907,12 @@ export default function KanbanBoard({
       return;
     }
 
-    // Автоматично згортаємо сабтаски при переносі
+    // Automatically collapse subtasks when moving
     if (isSubtask && parentTaskId) {
-      // Якщо переносимо сабтаск, згортаємо сабтаски батьківської таски
+      // If moving subtask, collapse parent task's subtasks
       setExpandedSubtasks(prev => ({ ...prev, [parentTaskId]: false }));
     } else if (!isSubtask && task.subtasks && task.subtasks.length > 0) {
-      // Якщо переносимо основну таску з сабтасками, згортаємо її сабтаски
+      // If moving main task with subtasks, collapse its subtasks
       setExpandedSubtasks(prev => ({ ...prev, [task.id]: false }));
     }
 
@@ -645,6 +938,44 @@ export default function KanbanBoard({
     }
     toast.success(`Task moved to ${destination.droppableId}`);
   };
+
+  // Preview handlers
+  const handlePreviewHover = (columnId: string) => {
+    scrollToColumn(columnId);
+  };
+
+  const handlePreviewDrop = (columnId: string) => {
+    // Will be handled by onDragEnd
+  };
+
+  // Add useEffect for viewport detection with debouncing
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    const container = containerRef.current;
+    let scrollTimeout: NodeJS.Timeout;
+    
+    const handleScroll = () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        detectVisibleColumns();
+      }, 50); // Debounce scroll events
+    };
+    
+    const handleResize = () => detectVisibleColumns();
+    
+    container.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleResize);
+    
+    // Initial detection
+    detectVisibleColumns();
+    
+    return () => {
+      clearTimeout(scrollTimeout);
+      container.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [detectVisibleColumns]);
 
   // Card rendering
   function renderCard(task: any, isSubtask = false) {
@@ -835,208 +1166,286 @@ export default function KanbanBoard({
     );
   }
 
+  // Functions for expand/collapse all groups
+  const expandAllGroups = () => {
+    const newCollapsed: Record<string, boolean> = {};
+    orderedStatuses.forEach(status => {
+      newCollapsed[status.id] = false;
+    });
+    setCollapsed(newCollapsed);
+    toast.success("All groups expanded");
+    if (onExpandAll) onExpandAll();
+  };
+
+  const collapseAllGroups = () => {
+    const newCollapsed: Record<string, boolean> = {};
+    orderedStatuses.forEach(status => {
+      newCollapsed[status.id] = true;
+    });
+    setCollapsed(newCollapsed);
+    toast.success("All groups collapsed");
+    if (onCollapseAll) onCollapseAll();
+  };
+
+  // Expose functions to parent component
+  React.useEffect(() => {
+    (window as any).kanbanExpandAll = expandAllGroups;
+    (window as any).kanbanCollapseAll = collapseAllGroups;
+  }, [expandAllGroups, collapseAllGroups]);
+
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-full w-full">
+      <div className="flex flex-col h-full w-full relative">
         {/* Kanban scroll area with padding */}
-                      <div className="flex-1 px-4 pt-4 pb-4">
-            <style>{`
-              .kanban-scrollbar {
-                scrollbar-width: none;
-                -ms-overflow-style: none;
-              }
-              .kanban-scrollbar::-webkit-scrollbar {
-                display: none;
-              }
-              .kanban-scroll-hover .kanban-scrollbar {
-                overflow-x: auto !important;
-                scrollbar-width: thin;
-                scrollbar-color: #d1d5db transparent;
-              }
-              .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar {
-                display: block;
-                height: 8px;
-                background: transparent;
-              }
-              .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar-thumb {
-                background: #d1d5db;
-                border-radius: 8px;
-              }
-              .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar-track {
-                background: transparent;
-              }
-            `}</style>
-            <div
-              className="group relative"
-              onMouseEnter={e => e.currentTarget.classList.add('kanban-scroll-hover')}
-              onMouseLeave={e => e.currentTarget.classList.remove('kanban-scroll-hover')}
-            >
-              <div className="kanban-scrollbar flex gap-3 min-h-[700px] overflow-x-auto horizontal-hover-scrollbar" style={{overflowY: 'hidden', position: 'relative'}}>
-                <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-                  {STATUSES.map((column) => {
-                    const columnTasks = getColumnTasks(column.id);
-                    const isDropDisabled = !!(draggedTask && !isValidTransition(draggedTask.status, column.id));
-                    const isCollapsed = collapsed[column.id];
-                    const groupColor = statusColorMap[column.id] || "bg-white border-gray-200";
-          return (
-            <Droppable
-              key={column.id}
-              droppableId={column.id}
-              isDropDisabled={isDropDisabled}
-            >
-              {(provided, snapshot) => (
-                      isCollapsed ? (
-                        <Droppable key={column.id} droppableId={column.id} isDropDisabled={isDropDisabled}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                              className={`flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-full rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${isDropDisabled && draggedTask ? "opacity-50 cursor-not-allowed border-dashed" : ""}`}
-                              onClick={() => setCollapsed(c => ({ ...c, [column.id]: false }))}
+        <div className="flex-1 px-4 pt-4 pb-4">
+          <style>{`
+            .kanban-scrollbar {
+              scrollbar-width: none;
+              -ms-overflow-style: none;
+            }
+            .kanban-scrollbar::-webkit-scrollbar {
+              display: none;
+            }
+            .kanban-scroll-hover .kanban-scrollbar {
+              overflow-x: auto !important;
+              scrollbar-width: thin;
+              scrollbar-color: #d1d5db transparent;
+            }
+            .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar {
+              display: block;
+              height: 8px;
+              background: transparent;
+            }
+            .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar-thumb {
+              background: #d1d5db;
+              border-radius: 8px;
+            }
+            .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar-track {
+              background: transparent;
+            }
+          `}</style>
+          <div
+            className="group relative"
+            onMouseEnter={e => e.currentTarget.classList.add('kanban-scroll-hover')}
+            onMouseLeave={e => e.currentTarget.classList.remove('kanban-scroll-hover')}
+          >
+            <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
+              {/* Smart Preview Zones */}
+              <SmartPreviewZones
+                isDragging={isDragging}
+                draggedTask={draggedTask}
+                viewportInfo={viewportInfo}
+                tasks={tasks}
+                getColumnTasks={getColumnTasks}
+                onPreviewHover={handlePreviewHover}
+                onPreviewDrop={handlePreviewDrop}
+                onAutoScroll={autoScroll}
+              />
+              
+              {/* Droppable area for columns */}
+              <Droppable droppableId="board" type="COLUMN" direction="horizontal">
+                {(provided) => (
+                  <div
+                    ref={(el) => {
+                      provided.innerRef(el);
+                      containerRef.current = el;
+                    }}
+                    {...provided.droppableProps}
+                    className="kanban-scrollbar flex gap-3 min-h-[700px] overflow-x-auto horizontal-hover-scrollbar"
+                    style={{overflowY: 'hidden', position: 'relative'}}
+                  >
+                    {orderedStatuses.map((column, index) => {
+                      const columnTasks = getColumnTasks(column.id);
+                      const isDropDisabled = !!(draggedTask && !isValidTransition(draggedTask.status, column.id));
+                      const isCollapsed = collapsed[column.id];
+                      const groupColor = statusColorMap[column.id] || "bg-white border-gray-200";
+
+                      return (
+                        <Draggable key={column.id} draggableId={column.id} index={index}>
+                          {(dragProvided, dragSnapshot) => (
+                            <div
+                              ref={dragProvided.innerRef}
+                              {...dragProvided.draggableProps}
+                              className={`${dragSnapshot.isDragging ? 'opacity-75 rotate-2 scale-105' : ''} transition-all duration-150`}
+                              data-column-id={column.id}
                             >
-                              <div className="flex flex-col items-center justify-center w-full h-full py-8">
-                                <span className="font-medium text-base text-[#1c2024] mb-4 text-center" style={{ writingMode: "vertical-rl", textOrientation: "mixed", letterSpacing: "0.05em" }}>{column.title}</span>
-                                <span className="bg-white text-black text-base font-semibold rounded-xl px-4 py-1 mb-4 shadow border border-gray-200 text-center">{columnTasks.length}</span>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    setCollapsed(c => ({ ...c, [column.id]: false }));
-                                  }}
-                                  title="Expand group"
-                                >
-                                  <span className="sr-only">Expand</span>
-                                  <ChevronRight className="w-5 h-5" />
-                                </Button>
-                              </div>
-                              {provided.placeholder}
-                  </div>
-                  )}
-                        </Droppable>
-                      ) : (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          className={`flex flex-col min-w-[420px] max-w-[520px] h-[calc(100vh-160px)] rounded-lg border p-0 transition-opacity relative ${
-                            groupColor
-                          } ${
-                            isDropDisabled && draggedTask
-                              ? "opacity-50 cursor-not-allowed border-dashed"
-                              : ""
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-0 px-4 pt-3 pb-1 group">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-medium text-base text-[#1c2024]">{column.title}</h3>
-                              <Badge className="text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center">{columnTasks.length}</Badge>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {/* Collapse button (only on hover) */}
-                              <Tooltip>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    setCollapsed(c => ({ ...c, [column.id]: true }));
-                                  }}
-                                  title="Collapse group"
-                                >
-                                  <span className="sr-only">Collapse</span>
-                                  <ChevronLeft className="w-4 h-4" />
-                                </Button>
-                              </Tooltip>
-                              {/* Add task button */}
-                              {["To do", "In Progress"].includes(column.id) && (
-                                <Tooltip>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="rounded-full hover:bg-[#e0e2e7] text-gray-400"
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      // Trigger modal open with status
-                                      if (typeof window !== "undefined" && window.dispatchEvent) {
-                                        window.dispatchEvent(new CustomEvent("openCreateTaskModal", { detail: { status: column.id } }));
-                                      }
-                                    }}
-                                    title="Add task"
-                                  >
-                                    <span className="sr-only">Add task</span>
-                                    <span>+</span>
-                                  </Button>
-                                </Tooltip>
-                              )}
-                              {/* More button */}
-                              <Popover 
-                                open={columnMenuOpen[column.id]} 
-                                onOpenChange={(open) => setColumnMenuOpen(prev => ({ ...prev, [column.id]: open }))}
+                              <Droppable
+                                key={column.id}
+                                droppableId={column.id}
+                                isDropDisabled={isDropDisabled}
                               >
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="rounded-full hover:bg-[#e0e2e7] text-gray-400"
-                                    title="More actions"
-                                    onClick={e => { e.stopPropagation(); }}
-                                  >
-                                    <span className="sr-only">More</span>
-                                    <MoreHorizontal className="w-5 h-5 mx-auto" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-48 p-1" align="end">
-                                  <div className="space-y-1">
-                                    <Button
-                                      variant="ghost"
-                                      className="w-full justify-start text-sm font-normal px-2 py-1.5 h-auto"
-                                      onClick={() => {
-                                        setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }));
-                                        setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
-                                      }}
+                                {(provided, snapshot) => (
+                                  isCollapsed ? (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.droppableProps}
+                                      className={`flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-[300px] rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${isDropDisabled && draggedTask ? "opacity-50 cursor-not-allowed border-dashed" : ""}`}
+                                      onClick={() => setCollapsed(c => ({ ...c, [column.id]: false }))}
                                     >
-                                      {collapsed[column.id] ? 'Expand group' : 'Collapse group'}
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      className="w-full justify-start text-sm font-normal px-2 py-1.5 h-auto"
-                                      onClick={() => {
-                                        // TODO: Implement select all functionality
-                                        setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
-                                        toast.success(`Selected all tasks in ${column.title}`);
-                                      }}
+                                      {/* Drag handle for collapsed column */}
+                                      <div 
+                                        {...dragProvided.dragHandleProps}
+                                        className="absolute -top-1 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab p-1 rounded hover:bg-gray-100 bg-white shadow-sm border border-gray-200"
+                                        title="Drag column"
+                                      >
+                                        <GripVertical className="w-3 h-3 text-gray-400" />
+                                      </div>
+                                      <div className="flex flex-col items-center justify-start w-full h-full pt-8 pb-4">
+                                        <span className="font-medium text-base text-[#1c2024] mb-2 text-center" style={{ writingMode: "vertical-rl", textOrientation: "mixed", letterSpacing: "0.05em" }}>{column.title}</span>
+                                        <span className="bg-white text-black text-base font-semibold rounded-xl px-4 py-1 mb-2 shadow border border-gray-200 text-center">{columnTasks.length}</span>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            setCollapsed(c => ({ ...c, [column.id]: false }));
+                                          }}
+                                          title="Expand group"
+                                        >
+                                          <span className="sr-only">Expand</span>
+                                          <ChevronRight className="w-5 h-5" />
+                                        </Button>
+                                      </div>
+                                      {provided.placeholder}
+                                    </div>
+                                  ) : (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.droppableProps}
+                                      className={`flex flex-col min-w-[396px] max-w-[496px] h-[calc(100vh-160px)] rounded-lg border p-0 transition-opacity relative ${
+                                        groupColor
+                                      } ${
+                                        isDropDisabled && draggedTask
+                                          ? "opacity-50 cursor-not-allowed border-dashed"
+                                          : ""
+                                      }`}
                                     >
-                                      Select all
-                                    </Button>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            </div>
-                        </div>
-                          {!collapsed[column.id] && (
-                            <div className="flex-1 overflow-y-auto px-4 pb-4 hover-scrollbar">
-                              {columnTasks.length === 0 && (
-                                <div className="text-xs text-gray-400 flex-1 flex items-center justify-center">No tasks</div>
-                              )}
-                              {columnTasks.map((task: any, idx: number) => {
-                                return renderCard(task, task.isSubtaskInFlat);
-                              })}
-                              {provided.placeholder}
+                                      <div className="relative group">
+                                        {/* Drag handle for expanded column - positioned at top */}
+                                        <div 
+                                          {...dragProvided.dragHandleProps}
+                                          className="absolute -top-1 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab p-1 rounded hover:bg-gray-100 bg-white shadow-sm border border-gray-200"
+                                          title="Drag column"
+                                        >
+                                          <GripVertical className="w-3 h-3 text-gray-400" />
+                                        </div>
+                                        <div className="flex items-center justify-between mb-0 px-4 pt-3 pb-1">
+                                          <div className="flex items-center gap-2">
+                                            <h3 className="font-medium text-base text-[#1c2024]">{column.title}</h3>
+                                            <Badge className="text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center">{columnTasks.length}</Badge>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            {/* Collapse button (only on hover) */}
+                                            <Tooltip>
+                                              <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={e => {
+                                                  e.stopPropagation();
+                                                  setCollapsed(c => ({ ...c, [column.id]: true }));
+                                                }}
+                                                title="Collapse group"
+                                              >
+                                                <span className="sr-only">Collapse</span>
+                                                <ChevronLeft className="w-4 h-4" />
+                                              </Button>
+                                            </Tooltip>
+                                            {/* Add task button */}
+                                            {["To do", "In Progress"].includes(column.id) && (
+                                              <Tooltip>
+                                                <Button
+                                                  size="icon"
+                                                  variant="ghost"
+                                                  className="rounded-full hover:bg-[#e0e2e7] text-gray-400"
+                                                  onClick={e => {
+                                                    e.stopPropagation();
+                                                    // Trigger modal open with status
+                                                    if (typeof window !== "undefined" && window.dispatchEvent) {
+                                                      window.dispatchEvent(new CustomEvent("openCreateTaskModal", { detail: { status: column.id } }));
+                                                    }
+                                                  }}
+                                                  title="Add task"
+                                                >
+                                                  <span className="sr-only">Add task</span>
+                                                  <span>+</span>
+                                                </Button>
+                                              </Tooltip>
+                                            )}
+                                            {/* More button */}
+                                            <Popover 
+                                              open={columnMenuOpen[column.id]} 
+                                              onOpenChange={(open) => setColumnMenuOpen(prev => ({ ...prev, [column.id]: open }))}
+                                            >
+                                              <PopoverTrigger asChild>
+                                                <Button
+                                                  size="icon"
+                                                  variant="ghost"
+                                                  className="rounded-full hover:bg-[#e0e2e7] text-gray-400"
+                                                  title="More actions"
+                                                  onClick={e => { e.stopPropagation(); }}
+                                                >
+                                                  <span className="sr-only">More</span>
+                                                  <MoreHorizontal className="w-5 h-5 mx-auto" />
+                                                </Button>
+                                              </PopoverTrigger>
+                                              <PopoverContent className="w-48 p-1" align="end">
+                                                <div className="space-y-1">
+                                                  <Button
+                                                    variant="ghost"
+                                                    className="w-full justify-start text-sm font-normal px-2 py-1.5 h-auto"
+                                                    onClick={() => {
+                                                      setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }));
+                                                      setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
+                                                    }}
+                                                  >
+                                                    {collapsed[column.id] ? 'Expand group' : 'Collapse group'}
+                                                  </Button>
+                                                  <Button
+                                                    variant="ghost"
+                                                    className="w-full justify-start text-sm font-normal px-2 py-1.5 h-auto"
+                                                    onClick={() => {
+                                                      // TODO: Implement select all functionality
+                                                      setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
+                                                      toast.success(`Selected all tasks in ${column.title}`);
+                                                    }}
+                                                  >
+                                                    Select all
+                                                  </Button>
+                                                </div>
+                                              </PopoverContent>
+                                            </Popover>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      {!collapsed[column.id] && (
+                                        <div className="flex-1 overflow-y-auto px-4 pb-4 hover-scrollbar">
+                                          {columnTasks.length === 0 && (
+                                            <div className="text-xs text-gray-400 flex-1 flex items-center justify-center">No tasks</div>
+                                          )}
+                                          {columnTasks.map((task: any, idx: number) => {
+                                            return renderCard(task, task.isSubtaskInFlat);
+                                          })}
+                                          {provided.placeholder}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                )}
+                              </Droppable>
                             </div>
                           )}
-                        </div>
-                      )
-              )}
-            </Droppable>
-          );
-        })}
-              </DragDropContext>
-            </div>
+                        </Draggable>
+                      );
+                    })}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           </div>
         </div>
-        {/* Видаляю selectedTask, TaskPreview */}
       </div>
     </TooltipProvider>
   );
