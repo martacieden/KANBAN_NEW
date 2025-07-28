@@ -11,6 +11,7 @@ import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import TaskPreview from "./TaskPreview";
+import SmartDropMenu from "./SmartDropMenu";
 import React from "react";
 
 // Types for Smart Preview functionality
@@ -561,6 +562,15 @@ export default function KanbanBoard({
   const [expandedSubtasks, setExpandedSubtasks] = useState<Record<string, boolean>>({});
   const [columnMenuOpen, setColumnMenuOpen] = useState<Record<string, boolean>>({});
   
+  // Smart Drop Menu states
+  const [showSmartDropMenu, setShowSmartDropMenu] = useState(false);
+  const [hiddenColumns, setHiddenColumns] = useState<Array<{
+    id: string;
+    title: string;
+    color: string;
+    taskCount: number;
+  }>>([]);
+  
   // New state for column order
   const [columnOrder, setColumnOrder] = useState<string[]>([
     "Acknowledged", 
@@ -592,6 +602,33 @@ export default function KanbanBoard({
     return tasks.filter(matches);
   }, [tasks, search]);
 
+  // Check for hidden columns and show Smart Drop Menu
+  const checkForHiddenColumns = () => {
+    const container = document.querySelector('.kanban-board-container');
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const visibleColumns = orderedStatuses.filter(column => {
+      const columnElement = document.querySelector(`[data-column-id="${column.id}"]`);
+      if (!columnElement) return false;
+      
+      const columnRect = columnElement.getBoundingClientRect();
+      return columnRect.left >= containerRect.left && columnRect.right <= containerRect.right;
+    });
+    
+    const hiddenColumns = orderedStatuses.filter(column => 
+      !visibleColumns.find(vc => vc.id === column.id)
+    ).map(column => ({
+      id: column.id,
+      title: column.title,
+      color: column.color,
+      taskCount: getColumnTasks(column.id).length
+    }));
+    
+    setHiddenColumns(hiddenColumns);
+    setShowSmartDropMenu(hiddenColumns.length > 0);
+  };
+  
   // Grouped/flat view
   function getColumnTasks(status: string) {
     if (grouped) {
@@ -642,6 +679,11 @@ export default function KanbanBoard({
     }
     
     setDraggedTask(task || null);
+    
+    // Check if we need to show Smart Drop Menu
+    setTimeout(() => {
+      checkForHiddenColumns();
+    }, 100);
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -737,12 +779,57 @@ export default function KanbanBoard({
     // Immediate state reset
     setIsDragging(false);
     setDraggedTask(null);
+    setShowSmartDropMenu(false);
     
     // Callback after state update
     if (onTaskUpdate) {
       const updatedTask = { ...task, status: newStatus };
       onTaskUpdate(updatedTask);
     }
+  };
+  
+  // Handle Smart Drop Menu drop
+  const handleSmartDrop = (columnId: string) => {
+    if (!draggedTask) return;
+    
+    // Check if transition is valid
+    if (!isValidTransition(draggedTask.status, columnId)) {
+      toast.error(`Cannot move task from ${draggedTask.status} to ${columnId}`);
+      return;
+    }
+    
+    // Update task status
+    const newStatus = columnId;
+    
+    if (draggedTask.isSubtaskInFlat) {
+      setTasks(prev => 
+        prev.map(t => ({
+          ...t,
+          subtasks: t.subtasks ? t.subtasks.map((st: any) => 
+            st.id === draggedTask.id ? { ...st, status: newStatus } : st
+          ) : [],
+        }))
+      );
+    } else {
+      setTasks(prev => 
+        prev.map(t => 
+          t.id === draggedTask.id ? { ...t, status: newStatus } : t
+        )
+      );
+    }
+    
+    // Reset states
+    setIsDragging(false);
+    setDraggedTask(null);
+    setShowSmartDropMenu(false);
+    
+    // Callback
+    if (onTaskUpdate) {
+      const updatedTask = { ...draggedTask, status: newStatus };
+      onTaskUpdate(updatedTask);
+    }
+    
+    toast.success(`Task moved to ${columnId}`);
   };
 
 
@@ -1102,7 +1189,7 @@ export default function KanbanBoard({
             }
           `}</style>
           <div
-            className="group relative"
+            className="group relative kanban-board-container"
             onMouseEnter={e => e.currentTarget.classList.add('kanban-scroll-hover')}
             onMouseLeave={e => e.currentTarget.classList.remove('kanban-scroll-hover')}
           >
@@ -1323,6 +1410,14 @@ export default function KanbanBoard({
           </div>
         </div>
       </div>
+      
+      {/* Smart Drop Menu */}
+      <SmartDropMenu
+        isVisible={showSmartDropMenu}
+        hiddenColumns={hiddenColumns}
+        onDrop={handleSmartDrop}
+        draggedTask={draggedTask}
+      />
     </TooltipProvider>
   );
 } 
