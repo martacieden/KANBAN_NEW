@@ -660,6 +660,12 @@ export default function KanbanBoard({
   const onDragStart = (start: any) => {
     setIsDragging(true);
     
+    // Add dragging class to container
+    const container = document.querySelector('.kanban-board-container');
+    if (container) {
+      container.classList.add('dragging');
+    }
+    
     if (start.type === 'COLUMN') {
       setDraggedTask(null);
       return;
@@ -689,6 +695,13 @@ export default function KanbanBoard({
 
   const onDragEnd = (result: DropResult) => {
     setIsDragging(false);
+    
+    // Remove dragging class from container
+    const container = document.querySelector('.kanban-board-container');
+    if (container) {
+      container.classList.remove('dragging');
+    }
+    
     const wasTaskDrag = draggedTask !== null;
     setDraggedTask(null);
     
@@ -821,6 +834,13 @@ export default function KanbanBoard({
     
     // Reset states
     setIsDragging(false);
+    
+    // Remove dragging class from container
+    const container = document.querySelector('.kanban-board-container');
+    if (container) {
+      container.classList.remove('dragging');
+    }
+    
     setDraggedTask(null);
     setShowSmartDropMenu(false);
     
@@ -1170,6 +1190,25 @@ export default function KanbanBoard({
               -webkit-user-select: none;
               -moz-user-select: none;
               -ms-user-select: none;
+            }
+            
+            /* Fix kanban board during drag */
+            .kanban-board-container.dragging {
+              overflow: hidden !important;
+              pointer-events: none;
+            }
+            
+            .kanban-board-container.dragging .kanban-scrollbar {
+              pointer-events: none !important;
+              overflow: hidden !important;
+            }
+            
+            .kanban-board-container.dragging .kanban-column {
+              pointer-events: none;
+            }
+            
+            .kanban-board-container.dragging .kanban-card:not(.dragging) {
+              pointer-events: none;
             }
             
             /* Fix for hanging cards */

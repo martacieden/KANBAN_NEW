@@ -40,7 +40,7 @@ export default function SmartDropMenu({
         onClick={handleOutsideClick}
       >
         <div className="text-xs font-medium text-gray-500 mb-2 px-2">
-          Перемістити в:
+          Move to:
         </div>
         <div className="space-y-1">
           {hiddenColumns.map((column) => {
