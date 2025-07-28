@@ -613,6 +613,7 @@ export default function KanbanBoard({
       if (!columnElement) return false;
       
       const columnRect = columnElement.getBoundingClientRect();
+      // Check if column is fully visible within the container
       return columnRect.left >= containerRect.left && columnRect.right <= containerRect.right;
     });
     
@@ -683,7 +684,7 @@ export default function KanbanBoard({
     // Check if we need to show Smart Drop Menu
     setTimeout(() => {
       checkForHiddenColumns();
-    }, 100);
+    }, 150);
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -831,6 +832,26 @@ export default function KanbanBoard({
     
     toast.success(`Task moved to ${columnId}`);
   };
+  
+  // Close Smart Drop Menu when clicking outside
+  const handleOutsideClick = () => {
+    setShowSmartDropMenu(false);
+  };
+  
+  // Close menu on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (showSmartDropMenu) {
+        setShowSmartDropMenu(false);
+      }
+    };
+    
+    const container = document.querySelector('.kanban-board-container');
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [showSmartDropMenu]);
 
 
 
@@ -1412,12 +1433,19 @@ export default function KanbanBoard({
       </div>
       
       {/* Smart Drop Menu */}
-      <SmartDropMenu
-        isVisible={showSmartDropMenu}
-        hiddenColumns={hiddenColumns}
-        onDrop={handleSmartDrop}
-        draggedTask={draggedTask}
-      />
+      {showSmartDropMenu && (
+        <div 
+          className="fixed inset-0 z-[9998] pointer-events-none"
+          onClick={handleOutsideClick}
+        >
+          <SmartDropMenu
+            isVisible={showSmartDropMenu}
+            hiddenColumns={hiddenColumns}
+            onDrop={handleSmartDrop}
+            draggedTask={draggedTask}
+          />
+        </div>
+      )}
     </TooltipProvider>
   );
 } 

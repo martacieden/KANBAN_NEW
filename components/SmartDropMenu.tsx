@@ -24,9 +24,21 @@ export default function SmartDropMenu({
     return null;
   }
 
+  // Close menu when clicking outside
+  const handleOutsideClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      // This will be handled by parent component
+      return;
+    }
+  };
+
   return (
     <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-[9999] pointer-events-none">
-      <div className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-xl p-2 min-w-[200px] pointer-events-auto">
+      <div 
+        className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-xl p-2 min-w-[200px] pointer-events-auto" 
+        style={{ pointerEvents: 'auto' }}
+        onClick={handleOutsideClick}
+      >
         <div className="text-xs font-medium text-gray-500 mb-2 px-2">
           Перемістити в:
         </div>
