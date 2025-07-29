@@ -2112,9 +2112,12 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             .kanban-card.dragging {
               transform: scale(1.02);
               box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-              z-index: 1000;
+              z-index: 99999;
               pointer-events: none;
               border: 2px solid rgb(59, 130, 246);
+              opacity: 1 !important;
+              visibility: visible !important;
+              display: block !important;
             }
             
             /* Better drag preview positioning */
@@ -2131,19 +2134,42 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               transform: none !important;
             }
             
+            /* Ensure drag preview follows cursor exactly */
+            [data-rbd-draggable-id][data-rbd-dragging="true"] {
+              transform: scale(1.02) !important;
+              box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+              z-index: 99999 !important;
+              transition: none !important;
+              pointer-events: none !important;
+              opacity: 1 !important;
+              visibility: visible !important;
+              position: relative !important;
+              will-change: transform !important;
+            }
+            
             /* Better drag preview positioning - exact cursor following */
             [data-rbd-draggable-id][data-rbd-dragging="true"] {
               transform: scale(1.02) !important;
               box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
-              z-index: 1000 !important;
+              z-index: 99999 !important;
               transition: none !important;
               pointer-events: none !important;
+              opacity: 1 !important;
+              visibility: visible !important;
+              position: relative !important;
             }
             
             /* Ensure drag preview is positioned exactly at cursor */
             [data-rbd-draggable-id][data-rbd-dragging="true"] * {
               pointer-events: none !important;
               user-select: none !important;
+            }
+            
+            /* Force drag preview to be visible */
+            [data-rbd-draggable-id][data-rbd-dragging="true"] .kanban-card {
+              opacity: 1 !important;
+              visibility: visible !important;
+              display: block !important;
             }
             
             .kanban-column {
@@ -2212,6 +2238,24 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             .kanban-board-container.dragging {
               overflow: hidden !important;
               pointer-events: none;
+            }
+            
+            /* Ensure drag preview is always visible and follows cursor */
+            .react-beautiful-dnd-dragging {
+              opacity: 1 !important;
+              visibility: visible !important;
+              z-index: 99999 !important;
+              pointer-events: none !important;
+              position: fixed !important;
+            }
+            
+            /* Force drag preview to be visible */
+            [data-rbd-draggable-id][data-rbd-dragging="true"] {
+              opacity: 1 !important;
+              visibility: visible !important;
+              display: block !important;
+              position: relative !important;
+              z-index: 99999 !important;
             }
             
             /* Ensure drag preview is positioned correctly */
@@ -2288,6 +2332,16 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               transform-origin: center !important;
               transition: none !important;
               will-change: transform !important;
+              opacity: 1 !important;
+              visibility: visible !important;
+              display: block !important;
+            }
+            
+            /* Ensure drag preview is always visible */
+            .react-beautiful-dnd-dragging {
+              opacity: 1 !important;
+              visibility: visible !important;
+              z-index: 99999 !important;
             }
             
             /* Fix for hanging cards */
