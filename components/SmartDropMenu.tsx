@@ -33,14 +33,14 @@ export default function SmartDropMenu({
   };
 
   return (
-    <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-[9999] pointer-events-none">
+    <div className="fixed right-4 top-1/2 transform -translate-y-1/2 z-[9998] pointer-events-none">
       <div 
-        className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-xl p-2 min-w-[200px] pointer-events-auto" 
+        className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-xl p-3 min-w-[180px] max-w-[220px] pointer-events-auto" 
         style={{ pointerEvents: 'auto' }}
         onClick={handleOutsideClick}
       >
-        <div className="text-xs font-medium text-gray-500 mb-2 px-2">
-          Move to:
+        <div className="text-xs font-medium text-gray-500 mb-3 px-1">
+          📦 Move to hidden column:
         </div>
         <div className="space-y-1">
           {hiddenColumns.map((column) => {
@@ -71,12 +71,12 @@ export default function SmartDropMenu({
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${column.color.replace('bg-', 'bg-').replace('border-', 'bg-')}`} />
-                    <span className="text-sm font-medium text-gray-700">
+                    <div className={`w-2.5 h-2.5 rounded-full ${column.color.replace('bg-', 'bg-').replace('border-', 'bg-')}`} />
+                    <span className="text-xs font-medium text-gray-700 truncate">
                       {column.title}
                     </span>
                   </div>
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
                     {column.taskCount}
                   </Badge>
                 </div>

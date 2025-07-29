@@ -12,7 +12,7 @@ const menu = [
 
 export default function Sidebar() {
   return (
-    <aside className="flex flex-col h-screen w-[72px] bg-white border-r items-center pt-4 pb-2">
+    <aside className="flex flex-col h-screen w-[72px] bg-white border-r border-[#e8e8ec] items-center pt-4 pb-2">
       {/* Logo */}
       <div className="mb-3 flex flex-col items-center">
         <div className="bg-blue-100 rounded-xl p-1 flex flex-col items-center">

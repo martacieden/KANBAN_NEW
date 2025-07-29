@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Sidebar from "../components/sidebar";
 import TopBar from "../components/topbar";
 import KanbanBoard, { initialTasks as kanbanInitialTasks } from "../components/KanbanBoard";
@@ -47,10 +47,12 @@ function generateColorFromText(text: string): string {
 export default function Page() {
   // Define fields for Kanban cards
   const KANBAN_CARD_FIELDS = [
-    { key: "taskId", label: "ID", pinned: false },
     { key: "name", label: "Name", pinned: true },
-    { key: "organization", label: "Organization", pinned: false },
+    { key: "status", label: "Status", pinned: true },
+    { key: "divider", label: "divider", pinned: false },
+    { key: "taskId", label: "ID", pinned: false },
     { key: "priority", label: "Priority", pinned: false },
+    { key: "organization", label: "Organization", pinned: false },
     { key: "assignee", label: "Assignee", pinned: false },
     { key: "tags", label: "Tags", pinned: false },
     { key: "dueDate", label: "Due date", pinned: false },
@@ -63,8 +65,8 @@ export default function Page() {
   const TABLE_COLUMN_FIELDS = [
     { key: "taskId", label: "ID", pinned: false },
     { key: "title", label: "Name", pinned: true },
-    { key: "priority", label: "Priority", pinned: false },
     { key: "status", label: "Status", pinned: false },
+    { key: "priority", label: "Priority", pinned: false },
     { key: "assignee", label: "Assignee", pinned: false },
     { key: "dueDate", label: "Due date", pinned: false },
     { key: "description", label: "Description", pinned: false },
@@ -92,8 +94,8 @@ export default function Page() {
     const obj: Record<string, boolean> = {};
     // Initialize with all possible fields from both lists
     [...KANBAN_CARD_FIELDS, ...TABLE_COLUMN_FIELDS].forEach(f => {
-      // Show all fields by default except Tags
-      obj[f.key] = f.key !== 'tags';
+      // Show all fields by default except Tags, Description, and divider
+      obj[f.key] = f.key !== 'tags' && f.key !== 'description' && f.key !== 'divider';
     });
     return obj;
   });
@@ -140,6 +142,12 @@ export default function Page() {
     organization: 150,
     description: 200,
   });
+  
+  const [activeFiltersCount, setActiveFiltersCount] = useState(0);
+  
+  const updateFiltersCount = (count: number) => {
+    setActiveFiltersCount(count);
+  };
 
   // Функція для оновлення selectedTask коли завдання змінюється в KanbanBoard
   const handleTaskUpdate = (updatedTask: any) => {
@@ -183,15 +191,15 @@ export default function Page() {
     <div className="flex h-screen bg-white">
       {/* Sidebar - fixed */}
       {!sidebarCollapsed && (
-        <div className="sticky top-0 left-0 h-screen z-30"><Sidebar /></div>
+        <div className="fixed top-0 left-0 h-screen z-30"><Sidebar /></div>
       )}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={`flex-1 flex flex-col min-w-0 ${!sidebarCollapsed ? 'ml-[72px]' : ''}`}>
         {/* TopBar - fixed */}
-        <div className="sticky top-0 left-0 z-20 bg-white"><TopBar /></div>
-        <div className="flex flex-1 min-h-0">
+        <div className="fixed top-0 left-0 right-0 z-20 bg-white" style={{ left: !sidebarCollapsed ? '72px' : '0' }}><TopBar /></div>
+        <div className="flex flex-1 min-h-0" style={{ marginTop: '56px' }}>
           {/* Tasks Panel - sticky */}
           {!sidebarCollapsed && (
-            <div className="w-64 bg-[#ffffff] border-r border-[#e8e8ec] flex flex-col sticky top-[56px] left-0 z-10 h-[calc(100vh-56px)]">
+            <div className="w-64 bg-[#ffffff] border-r border-[#e8e8ec] flex flex-col sticky top-0 left-0 z-10 h-[calc(100vh-56px)]">
               <div className="flex-1 p-4 overflow-y-auto">
                 <h3 className="text-lg font-semibold text-[#1c2024] mb-4">Tasks</h3>
                 <div className="space-y-1">
@@ -224,7 +232,7 @@ export default function Page() {
           <div className="flex-1 flex flex-row min-w-0">
             <div className="flex-1 flex flex-col min-w-0">
               {/* Filter/Search Bar Row - sticky */}
-              <div className="sticky top-[56px] left-0 z-10 bg-white">
+              <div className="sticky top-0 left-0 z-10 bg-white">
                 <div className="bg-[#ffffff] border-b border-[#e8e8ec] py-1">
                   <div className="flex items-center justify-between px-4">
                     <div className="flex items-center gap-3">
@@ -250,9 +258,16 @@ export default function Page() {
                         )}
                       </button>
                       {/* Filters, View Setting, Search */}
-                      <Button variant="ghost" size="sm" className="text-[#60646c]">
+                      <Button variant="ghost" size="sm" className="text-[#60646c] relative">
                         <Filter className="w-4 h-4 mr-2" />
                         Filters
+                        {view === 'kanban' && activeFiltersCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
+                            {activeFiltersCount}
+                          </span>
+                        )}
+
+
                       </Button>
                       <Popover open={showSettings} onOpenChange={setShowSettings}>
                         <PopoverTrigger asChild>
@@ -278,34 +293,34 @@ export default function Page() {
                           <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
                             {/* Show all available fields based on current view */}
                             {getCurrentFields()
-                              .filter(field => field.label.toLowerCase().includes(settingsSearch.toLowerCase()))
+                              .filter(field => field.key === 'divider' || field.label.toLowerCase().includes(settingsSearch.toLowerCase()))
                               .map((field, idx) => (
                                 <div key={field.key}>
-                                  <div className="flex items-center justify-between py-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-[15px] text-[#1c2024]">{field.label}</span>
-                                      {field.pinned && (
-                                        <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600">
-                                          Required
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <Switch
-                                      checked={cardFields[field.key] !== false}
-                                      disabled={field.pinned}
-                                      onCheckedChange={(checked) => {
-                                        if (!field.pinned) {
-                                          setCardFields(prev => ({
-                                            ...prev,
-                                            [field.key]: checked
-                                          }));
-                                        }
-                                      }}
-                                    />
-                                  </div>
-                                  {/* Add separator line after Name field */}
-                                  {(field.key === 'name' || field.key === 'title') && (
+                                  {field.key === 'divider' ? (
                                     <div className="border-t border-gray-200 my-2"></div>
+                                  ) : (
+                                    <div className="flex items-center justify-between py-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[15px] text-[#1c2024]">{field.label}</span>
+                                        {field.pinned && (
+                                          <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600">
+                                            Required
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <Switch
+                                        checked={cardFields[field.key] !== false}
+                                        disabled={field.pinned}
+                                        onCheckedChange={(checked) => {
+                                          if (!field.pinned) {
+                                            setCardFields(prev => ({
+                                              ...prev,
+                                              [field.key]: checked
+                                            }));
+                                          }
+                                        }}
+                                      />
+                                    </div>
                                   )}
                                 </div>
                               ))
@@ -317,8 +332,8 @@ export default function Page() {
                             onClick={() => setCardFields(() => {
                               const obj: Record<string, boolean> = {};
                               getCurrentFields().forEach(f => {
-                                // Show all fields by default except Tags
-                                obj[f.key] = f.key !== 'tags';
+                                // Show all fields by default except Tags and divider
+                                obj[f.key] = f.key !== 'tags' && f.key !== 'divider';
                               });
                               return obj;
                             })}
@@ -400,6 +415,7 @@ export default function Page() {
                   setCardFields={setCardFields}
                   onTaskClick={setSelectedTask}
                   onTaskUpdate={handleTaskUpdate}
+                  onFiltersChange={updateFiltersCount}
                 />
               ) : (
                 <div className="flex-1 flex flex-col min-h-0">

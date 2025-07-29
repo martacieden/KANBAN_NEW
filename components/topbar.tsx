@@ -2,7 +2,7 @@ import { Bell } from "lucide-react";
 
 export default function TopBar() {
   return (
-    <header className="w-full h-14 flex items-center justify-between px-6 border-b bg-white">
+    <header className="w-full h-14 flex items-center justify-between px-6 border-b border-[#e8e8ec] bg-white">
       {/* Пошук */}
       <div className="flex-1 flex items-center">
         <div className="relative w-80">
