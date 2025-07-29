@@ -1451,9 +1451,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             ref={provided.innerRef}
             {...provided.draggableProps}
             className="relative"
-                              style={{
-                    ...provided.draggableProps.style,
-                  }}
+            style={provided.draggableProps.style}
           >
               <Card 
                 {...provided.dragHandleProps}
@@ -2147,6 +2145,19 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               will-change: transform !important;
             }
             
+            /* Prevent drag preview from disappearing */
+            [data-rbd-draggable-id][data-rbd-dragging="true"] * {
+              opacity: 1 !important;
+              visibility: visible !important;
+              pointer-events: none !important;
+            }
+            
+            /* Ensure drag preview container is visible */
+            [data-rbd-draggable-context-id] {
+              opacity: 1 !important;
+              visibility: visible !important;
+            }
+            
             /* Better drag preview positioning - exact cursor following */
             [data-rbd-draggable-id][data-rbd-dragging="true"] {
               transform: scale(1.02) !important;
@@ -2249,6 +2260,19 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               position: fixed !important;
             }
             
+            /* Ensure drag preview stays visible during column transitions */
+            [data-rbd-droppable-id] {
+              opacity: 1 !important;
+              visibility: visible !important;
+            }
+            
+            /* Prevent any element from hiding during drag */
+            *[data-rbd-dragging="true"] {
+              opacity: 1 !important;
+              visibility: visible !important;
+              display: block !important;
+            }
+            
             /* Force drag preview to be visible */
             [data-rbd-draggable-id][data-rbd-dragging="true"] {
               opacity: 1 !important;
@@ -2256,6 +2280,18 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               display: block !important;
               position: relative !important;
               z-index: 99999 !important;
+            }
+            
+            /* Ensure drag preview element is visible */
+            [data-rbd-drag-handle-draggable-id] {
+              opacity: 1 !important;
+              visibility: visible !important;
+            }
+            
+            /* Force all drag previews to be visible */
+            [data-rbd-draggable-id] {
+              opacity: 1 !important;
+              visibility: visible !important;
             }
             
             /* Ensure drag preview is positioned correctly */
@@ -2389,6 +2425,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             <DragDropContext 
               onDragStart={onDragStart} 
               onDragEnd={onDragEnd}
+              enableDefaultSensors={true}
             >
 
               
