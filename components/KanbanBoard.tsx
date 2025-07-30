@@ -804,7 +804,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   // Task management states
   const [showArchived, setShowArchived] = useState(false);
   const [agingFilter, setAgingFilter] = useState<string>("all"); // "all", "7days", "14days", "30days"
-  const [stuckTasksFilter, setStuckTasksFilter] = useState(false);
   
   // Archive settings
   const [autoArchiveEnabled, setAutoArchiveEnabled] = useState(true);
@@ -826,6 +825,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     recentlyUpdated: false,
     onHold: false,
     highPriority: false,
+    stalled: false,
   });
 
   // Performance optimization for large datasets
@@ -885,6 +885,13 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     return !task.assignee || !task.assignee.name;
   };
 
+  const isStalled = (task: any) => {
+    // Task is stalled if it hasn't been updated for 7+ days
+    const lastUpdated = task.lastStatusChange || task.createdAt || now.toISOString();
+    const daysDiff = Math.floor((now.getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
+    return daysDiff >= 7;
+  };
+
   const toggleQuickFilter = (filterName: string) => {
     setQuickFilters(prev => ({
       ...prev,
@@ -902,6 +909,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       recentlyUpdated: false,
       onHold: false,
       highPriority: false,
+      stalled: false,
     });
   };
 
@@ -941,6 +949,9 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     if (quickFilters.highPriority) {
       filtered = filtered.filter(isHighPriority);
     }
+    if (quickFilters.stalled) {
+      filtered = filtered.filter(isStalled);
+    }
 
     // Optimized search filter with multi-term matching
     if (search.trim()) {
@@ -960,7 +971,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     }
     
     return filtered;
-  }, [tasks, debouncedSearch, showArchived, agingFilter, stuckTasksFilter, quickFilters]);
+  }, [tasks, debouncedSearch, showArchived, agingFilter, quickFilters]);
 
   // Memoized column tasks for better performance
   const memoizedColumnTasks = useMemo(() => {
@@ -1862,6 +1873,31 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 </svg>
               )}
             </button>
+            
+            <button
+              onClick={() => toggleQuickFilter('stalled')}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+                quickFilters.stalled 
+                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Stalled task
+              {quickFilters.stalled && (
+                <svg 
+                  className="w-3 h-3 ml-1 cursor-pointer" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                  onClick={e => {
+                    e.stopPropagation();
+                    toggleQuickFilter('stalled');
+                  }}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
 
@@ -1922,16 +1958,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 </select>
               </div>
               
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={stuckTasksFilter}
-                  onCheckedChange={setStuckTasksFilter}
-                  id="stuck-tasks"
-                />
-                <label htmlFor="stuck-tasks" className="text-xs text-gray-600">
-                  Stuck Only
-                </label>
-              </div>
+
 
 
             </div>
@@ -2479,14 +2506,11 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                       const groupColor = statusColorMap[column.id] || "bg-white border-gray-200";
 
                       return (
-                        <Draggable key={column.id} draggableId={column.id} index={index}>
-                          {(dragProvided, dragSnapshot) => (
-                            <div
-                              ref={dragProvided.innerRef}
-                              {...dragProvided.draggableProps}
-                              className={`kanban-column ${dragSnapshot.isDragging ? 'dragging' : ''} transition-all duration-200`}
-                              data-column-id={column.id}
-                            >
+                        <div
+                          key={column.id}
+                          className="kanban-column transition-all duration-200"
+                          data-column-id={column.id}
+                        >
                               <Droppable
                                 key={column.id}
                                 droppableId={column.id}
@@ -2500,14 +2524,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                       className={`drop-zone flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-[300px] rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${snapshot.isDraggingOver ? 'drag-over' : ''} ${isDropDisabled && draggedTask ? "drop-disabled" : ""}`}
                                       onClick={() => setCollapsed(c => ({ ...c, [column.id]: false }))}
                                     >
-                                      {/* Drag handle for collapsed column */}
-                                                                              <div 
-                                          {...dragProvided.dragHandleProps}
-                                          className="absolute -top-1 left-1/2 transform -translate-x-1/2 opacity-0 hover:opacity-100 transition-opacity cursor-grab p-1 rounded hover:bg-gray-100 bg-white shadow-sm border border-gray-200"
-                                          title="Drag column"
-                                        >
-                                        <GripVertical className="w-3 h-3 text-gray-400" />
-                                      </div>
+                                      
                                       <div className="flex flex-col items-center justify-start w-full h-full pt-8 pb-4 group/collapsed">
                                         {/* Column selection checkbox for collapsed view - visible on hover */}
                                         {columnTasks.length > 0 && (
@@ -2600,14 +2617,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                     >
 
                                       <div className="relative group">
-                                        {/* Drag handle for expanded column - positioned at top */}
-                                        <div 
-                                          {...dragProvided.dragHandleProps}
-                                          className="absolute -top-1 left-1/2 transform -translate-x-1/2 opacity-0 hover:opacity-100 transition-opacity cursor-grab p-1 rounded hover:bg-gray-100 bg-white shadow-sm border border-gray-200"
-                                          title="Drag column"
-                                        >
-                                          <GripVertical className="w-3 h-3 text-gray-400" />
-                                        </div>
                                         <div className="flex items-center justify-between mb-2 px-4 pt-3 pb-2">
                                           <div className="flex items-center gap-1 group/header">
                                             {/* Column selection checkbox - visible on hover */}
@@ -2786,8 +2795,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                 )}
                               </Droppable>
                             </div>
-                          )}
-                        </Draggable>
                       );
                     })}
                     {provided.placeholder}
