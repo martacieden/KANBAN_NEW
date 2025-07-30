@@ -861,24 +861,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
 
   // Quick filter functions
-  const isOverdue = (task: any) => {
-    if (!task.dueDate) return false;
-    return new Date(task.dueDate) < now;
-  };
-
-  const isDueSoon = (task: any) => {
-    if (!task.dueDate) return false;
-    const dueDate = new Date(task.dueDate);
-    const diffDays = Math.floor((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= 3;
-  };
-
-  const isRecentlyUpdated = (task: any) => {
-    const lastUpdated = task.lastStatusChange || task.createdAt || now.toISOString();
-    const daysDiff = Math.floor((now.getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
-    return daysDiff <= 2;
-  };
-
   const isOnHold = (task: any) => {
     return task.status === "blocked" || task.status === "needs_work";
   };
@@ -932,17 +914,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     return columnOrder.map(id => findStatusById(id)).filter(Boolean);
   }, [columnOrder]);
 
-  // Helper functions for filtering
-  const getTaskAge = (task: any) => {
-    const lastUpdated = task.lastStatusChange || task.createdAt || now.toISOString();
-    const daysDiff = Math.floor((now.getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
-    return daysDiff;
-  };
 
-  const isTaskStuck = (task: any) => {
-    const age = getTaskAge(task);
-    return age >= 7; // Task is stuck if not updated for 7+ days
-  };
 
   // Search and filter tasks
   const filteredTasks = useMemo(() => {
@@ -953,20 +925,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       filtered = filtered.filter(task => !('archived' in task ? task.archived : false));
     }
 
-    // Aging filter
-    if (agingFilter !== "all") {
-      const days = parseInt(agingFilter);
-      filtered = filtered.filter(task => {
-        const age = getTaskAge(task);
-        return age >= days;
-      });
-    }
-
-    // Stuck tasks filter
-    if (stuckTasksFilter) {
-      filtered = filtered.filter(isTaskStuck);
-    }
-
     // Quick filters
     if (quickFilters.assignedToMe) {
       filtered = filtered.filter(isAssignedToMe);
@@ -974,17 +932,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     if (quickFilters.createdByMe) {
       filtered = filtered.filter(isCreatedByMe);
     }
-    if (quickFilters.overdue) {
-      filtered = filtered.filter(isOverdue);
-    }
     if (quickFilters.unassigned) {
       filtered = filtered.filter(isUnassigned);
-    }
-    if (quickFilters.dueSoon) {
-      filtered = filtered.filter(isDueSoon);
-    }
-    if (quickFilters.recentlyUpdated) {
-      filtered = filtered.filter(isRecentlyUpdated);
     }
     if (quickFilters.onHold) {
       filtered = filtered.filter(isOnHold);
@@ -1043,32 +992,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     );
   };
 
-  // Auto-archive functions
-  const autoArchiveOldTasks = () => {
-    if (!autoArchiveEnabled) return;
-    
-    setTasks(prev => 
-      prev.map(task => {
-        const age = getTaskAge(task);
-        const isCompleted = task.status === "done" || task.status === "approved" || task.status === "validated";
-        
-        // Auto-archive old tasks
-        if (age >= autoArchiveDays && !('archived' in task ? task.archived : false)) {
-          return { ...task, archived: true, archivedAt: new Date().toISOString() };
-        }
-        
-        // Auto-archive completed tasks after delay
-        if (autoArchiveCompleted && isCompleted && !('archived' in task ? task.archived : false)) {
-          const completedAge = getTaskAge(task);
-          if (completedAge >= autoArchiveCompletedDays) {
-            return { ...task, archived: true, archivedAt: new Date().toISOString() };
-          }
-        }
-        
-        return task;
-      })
-    );
-  };
+
 
   // Bulk operations
   const toggleTaskSelection = (taskId: string) => {
@@ -1140,14 +1064,13 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   const getTaskMetrics = () => {
     const activeTasks = tasks.filter(t => !('archived' in t ? t.archived : false));
     const blockedTasks = activeTasks.filter(t => t.status === "blocked" || t.status === "needs_work");
-    const stuckTasks = activeTasks.filter(isTaskStuck);
     const doneTasks = activeTasks.filter(t => t.status === "done");
     const validatedTasks = activeTasks.filter(t => t.status === "validated");
 
     return {
       total: activeTasks.length,
       blocked: blockedTasks.length,
-      stuck: stuckTasks.length,
+      stuck: 0,
       done: doneTasks.length,
       validated: validatedTasks.length,
       doneNotValidated: doneTasks.length - validatedTasks.length
@@ -1451,9 +1374,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 className={`kanban-card group border-[#e8e8ec] rounded-2xl w-full cursor-grab ${
                   snapshot.isDragging 
                     ? 'dragging shadow-xl shadow-black/20 border-blue-300 cursor-grabbing transition-none' 
-                    : isTaskStuck(task)
-                  ? 'shadow-none hover:shadow-lg hover:shadow-black/15 hover:border-yellow-300 border-yellow-200 transition-all duration-200 ease-out'
-                  : 'shadow-none hover:shadow-lg hover:shadow-black/15 hover:border-gray-300 transition-all duration-200 ease-out'
+                    : 'shadow-none hover:shadow-lg hover:shadow-black/15 hover:border-gray-300 transition-all duration-200 ease-out'
                 }`}
               >
 
@@ -1488,24 +1409,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                       <span>{task.taskId}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      {/* Stuck task indicator */}
-                      {isTaskStuck(task) && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                          ⏰ {getTaskAge(task)}d
-                        </span>
-                      )}
-                      {/* Overdue indicator */}
-                      {isOverdue(task) && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                          ⚠️ Overdue
-                        </span>
-                      )}
-                      {/* Due soon indicator */}
-                      {isDueSoon(task) && !isOverdue(task) && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
-                          🔔 Due Soon
-                        </span>
-                      )}
                       {/* Status Label */}
                       {cardFields.status !== false && (() => {
                         const status = findStatusById(task.status);
@@ -1728,10 +1631,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     getActiveQuickFiltersCount
   }), [quickFilters]);
 
-  // Auto-archive on component mount and when settings change
-  useEffect(() => {
-    autoArchiveOldTasks();
-  }, [autoArchiveEnabled, autoArchiveDays, autoArchiveCompleted, autoArchiveCompletedDays]);
+
 
   return (
     <TooltipProvider>
