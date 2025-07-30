@@ -414,8 +414,6 @@ export default function Page() {
                   cardFields={cardFields}
                   setCardFields={setCardFields}
                   onTaskClick={setSelectedTask}
-                  onTaskUpdate={handleTaskUpdate}
-                  onFiltersChange={updateFiltersCount}
                 />
               ) : (
                 <div className="flex-1 flex flex-col min-h-0">
