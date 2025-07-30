@@ -1688,11 +1688,11 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
           </div>
 
           {/* Quick Filter Pills */}
-          <div className="px-6 flex flex-wrap gap-2 mb-2 justify-between">
+          <div className="px-6 flex flex-wrap gap-1 mb-2 justify-between">
 
             <button
               onClick={() => toggleQuickFilter('assignedToMe')}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                 quickFilters.assignedToMe 
                   ? 'bg-blue-100 text-blue-700 border border-blue-200' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1717,7 +1717,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             
             <button
               onClick={() => toggleQuickFilter('createdByMe')}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                 quickFilters.createdByMe 
                   ? 'bg-blue-100 text-blue-700 border border-blue-200' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1742,7 +1742,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             
             <button
               onClick={() => toggleQuickFilter('overdue')}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                 quickFilters.overdue 
                   ? 'bg-blue-100 text-blue-700 border border-blue-200' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1767,7 +1767,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             
             <button
               onClick={() => toggleQuickFilter('unassigned')}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                 quickFilters.unassigned 
                   ? 'bg-blue-100 text-blue-700 border border-blue-200' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1792,7 +1792,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             
             <button
               onClick={() => toggleQuickFilter('dueSoon')}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                 quickFilters.dueSoon 
                   ? 'bg-blue-100 text-blue-700 border border-blue-200' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1817,7 +1817,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             
             <button
               onClick={() => toggleQuickFilter('recentlyUpdated')}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                 quickFilters.recentlyUpdated 
                   ? 'bg-blue-100 text-blue-700 border border-blue-200' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1842,7 +1842,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             
             <button
               onClick={() => toggleQuickFilter('onHold')}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                 quickFilters.onHold 
                   ? 'bg-blue-100 text-blue-700 border border-blue-200' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1867,7 +1867,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             
             <button
               onClick={() => toggleQuickFilter('highPriority')}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                 quickFilters.highPriority 
                   ? 'bg-blue-100 text-blue-700 border border-blue-200' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -1892,7 +1892,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             
             <button
               onClick={() => toggleQuickFilter('stalled')}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+              className={`px-2 py-1 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                 quickFilters.stalled 
                   ? 'bg-blue-100 text-blue-700 border border-blue-200' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
