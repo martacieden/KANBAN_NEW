@@ -1081,28 +1081,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   function getColumnTasks(status: string) {
     let tasksInColumn: any[] = [];
     
-    if (grouped) {
-      tasksInColumn = filteredTasks.filter(t => t.status === status);
-    } else {
-      // Flat: all tasks and subtasks in this status
-      const all: any[] = [];
-      filteredTasks.forEach(t => {
-        if (t.status === status) all.push(t);
-        if (t.subtasks) t.subtasks.forEach((st: any) => {
-          if (st.status === status) {
-            // Inherit missing fields from parent for display/type safety
-            all.push({
-              ...t,
-              ...st,
-              parentTaskId: t.taskId,
-              parentTitle: t.title,
-              isSubtaskInFlat: true, // Mark as subtask in flat view
-            });
-          }
-        });
-      });
-      tasksInColumn = all;
-    }
+    // Always show only parent tasks, subtasks will be shown under their parent
+    tasksInColumn = filteredTasks.filter(t => t.status === status);
 
     // Apply custom order if exists
     const columnOrder = taskOrder[status];
@@ -1378,7 +1358,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 }`}
               >
 
-              <CardContent className={`${getDynamicPadding()} ${task.isSubtaskInFlat ? "bg-blue-50/30 border-l-4 border-l-blue-400" : ""} ${isSubtask ? "bg-gray-50/50 border-l-2 border-l-gray-300 shadow-sm" : ""}`}>
+              <CardContent className={`${getDynamicPadding()} ${isSubtask ? "bg-gray-50/50 border-l-2 border-l-gray-300 shadow-sm" : ""}`}>
 
 
                                 {/* ID line */}
@@ -2787,14 +2767,14 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                             >
                                               {({ index, style, data }) => (
                                                 <div style={{ ...style, paddingBottom: '8px' }}>
-                                                  {renderCard(data[index], data[index].isSubtaskInFlat, index)}
+                                                  {renderCard(data[index], false, index)}
                                                 </div>
                                               )}
                                             </List>
                                           ) : (
                                             <div className="space-y-2">
                                               {columnTasks.map((task: any, idx: number) => {
-                                                return renderCard(task, task.isSubtaskInFlat, idx);
+                                                return renderCard(task, false, idx);
                                               })}
                                             </div>
                                           )}
