@@ -1206,19 +1206,9 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     return tasksInColumn;
   }
 
-  // 1. Start dragging (onDragStart) - Block horizontal scroll
+  // 1. Start dragging (onDragStart) - Простий підхід
   const onDragStart = (start: any) => {
     setIsDragging(true);
-    
-    // 🔒 Set horizontal scroll blocking
-    const dragContainer = document.querySelector('.kanban-board-container');
-    const body = document.body;
-    
-    if (dragContainer) {
-      dragContainer.classList.add('dragging');
-    }
-    
-    body.classList.add('dragging');
     
     if (start.type === 'COLUMN') {
       setDraggedTask(null);
@@ -1240,102 +1230,12 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     }
     
     setDraggedTask(task || null);
-    
-    // Create custom drag preview
-    const createDragPreview = () => {
-      const draggingElement = document.querySelector('[data-rbd-dragging="true"]');
-      if (draggingElement) {
-        // Remove any existing custom preview
-        const existingPreview = document.getElementById('custom-drag-preview');
-        if (existingPreview) {
-          existingPreview.remove();
-        }
-        
-        const clone = draggingElement.cloneNode(true) as HTMLElement;
-        clone.style.position = 'fixed';
-        clone.style.zIndex = '2147483647';
-        clone.style.pointerEvents = 'none';
-        clone.style.opacity = '1';
-        clone.style.transform = 'scale(1.02)';
-        clone.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
-        clone.style.border = '2px solid rgb(59, 130, 246)';
-        clone.style.borderRadius = '8px';
-        clone.style.backgroundColor = 'white';
-        clone.style.top = '0';
-        clone.style.left = '0';
-        clone.style.width = '300px';
-        clone.style.height = 'auto';
-        clone.style.maxWidth = '400px';
-        clone.id = 'custom-drag-preview';
-        
-        // Force the preview to be visible
-        clone.style.display = 'block';
-        clone.style.visibility = 'visible';
-        clone.style.opacity = '1';
-        
-        document.body.appendChild(clone);
-        return clone;
-      }
-      return null;
-    };
-    
-    // Add mouse move listener for drag preview positioning
-    const handleMouseMove = (e: MouseEvent) => {
-      const customPreview = document.getElementById('custom-drag-preview');
-      
-      if (customPreview) {
-        customPreview.style.left = `${e.clientX + 10}px`;
-        customPreview.style.top = `${e.clientY + 10}px`;
-        customPreview.style.display = 'block';
-        customPreview.style.visibility = 'visible';
-        customPreview.style.opacity = '1';
-      }
-    };
-    
-    // Create custom preview after a short delay
-    setTimeout(() => {
-      createDragPreview();
-    }, 10);
-    
-    document.addEventListener('mousemove', handleMouseMove);
-    
-    // smart-drop-menu: removed checkForHiddenColumns call
   };
 
   // 4. End dragging (onDragEnd) - Restore scroll
+  // 4. End dragging (onDragEnd) - Простий підхід
   const onDragEnd = (result: DropResult) => {
     setIsDragging(false);
-    
-    // 🔓 Disable scroll blocking
-    const endContainer = document.querySelector('.kanban-board-container');
-    
-    if (endContainer) {
-      endContainer.classList.remove('dragging');
-    }
-    
-    document.body.classList.remove('dragging');
-    
-    // Remove mouse move listener and custom preview
-    const handleMouseMove = (e: MouseEvent) => {
-      const customPreview = document.getElementById('custom-drag-preview');
-      
-      if (customPreview) {
-        customPreview.style.left = `${e.clientX + 10}px`;
-        customPreview.style.top = `${e.clientY + 10}px`;
-        customPreview.style.display = 'block';
-        customPreview.style.visibility = 'visible';
-        customPreview.style.opacity = '1';
-      }
-    };
-    document.removeEventListener('mousemove', handleMouseMove);
-    
-    // Remove custom drag preview
-    const customPreview = document.getElementById('custom-drag-preview');
-    if (customPreview) {
-      customPreview.remove();
-    }
-    
-    const wasTaskDrag = draggedTask !== null;
     setDraggedTask(null);
     
     const { destination, source, draggableId, type } = result;
@@ -1344,11 +1244,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       return;
     }
     
-    // Handle preview drops - only for task drags
-    if (destination.droppableId.startsWith('preview-') && wasTaskDrag) {
-      const columnId = destination.droppableId.replace('preview-', '');
-      destination.droppableId = columnId;
-    }
+
     
     // Handle column reordering
     if (type === 'COLUMN') {
@@ -1364,23 +1260,16 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       return;
     }
     
-    // Handle task movement - only if it was a task drag
-    if (!wasTaskDrag) {
-      return;
-    }
+
     
     // If same position, do nothing
     if (destination.droppableId === source.droppableId && destination.index === source.index) {
       return;
     }
     
-    // Allow movement within the same column without any restrictions
-    const isMovingWithinSameColumn = destination.droppableId === source.droppableId;
-    
     // Find task or subtask
     let task = tasks.find((t) => t.id === draggableId);
     let isSubtask = false;
-    let parentTaskId = null;
     
     if (!task) {
       for (const t of tasks) {
@@ -1389,7 +1278,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
           if (st) {
             task = { ...t, ...st };
             isSubtask = true;
-            parentTaskId = t.id;
             break;
           }
         }
@@ -1400,82 +1288,35 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       return;
     }
     
-    // Check if transition is valid (only when moving between different columns)
-    if (!isMovingWithinSameColumn && !isValidTransition(task.status, destination.droppableId)) {
+    // Check if transition is valid
+    if (!isValidTransition(task.status, destination.droppableId)) {
       toast.error(`Cannot move task from ${task.status} to ${destination.droppableId}`);
       return;
     }
     
     // Update task order within columns
-    const updateTaskOrder = (columnId: string, isMovingWithinSameColumn: boolean = false) => {
-      const currentTasks = getColumnTasks(columnId);
-      const newOrder = currentTasks.map(t => t.id);
-      
-      if (isMovingWithinSameColumn) {
-        // For same column movement, we need to handle the reordering differently
-        const draggedTaskIndex = newOrder.indexOf(draggableId);
-        if (draggedTaskIndex > -1) {
-          newOrder.splice(draggedTaskIndex, 1);
-        }
-        // Insert at the new position
-        newOrder.splice(destination.index, 0, draggableId);
-      } else {
-        // For cross-column movement, just add to the destination
-        if (!newOrder.includes(draggableId)) {
-          newOrder.splice(destination.index, 0, draggableId);
-        }
-      }
-      
-      setTaskOrder(prev => ({
-        ...prev,
-        [columnId]: newOrder
-      }));
-    };
-    
-    // Update order for both source and destination columns
-    if (destination.droppableId === source.droppableId) {
-      // Moving within the same column
-      updateTaskOrder(destination.droppableId, true);
-    } else {
-      // Moving between different columns
-      updateTaskOrder(source.droppableId, false);
-      updateTaskOrder(destination.droppableId, false);
-    }
-    
-    // Ultra-fast task status update (only when moving between different columns)
+    // Update task status
     const newStatus = destination.droppableId;
     
-    // Only update status if moving between different columns
-    if (!isMovingWithinSameColumn) {
-      if (isSubtask) {
-        setTasks(prev => 
-          prev.map(t => ({
-            ...t,
-            subtasks: t.subtasks ? t.subtasks.map((st: any) => 
-              st.id === draggableId ? { ...st, status: newStatus } : st
-            ) : [],
-          }))
-        );
-      } else {
-        setTasks(prev => 
-          prev.map(t => 
-            t.id === draggableId ? { ...t, status: newStatus } : t
-          )
-        );
-      }
+    if (isSubtask) {
+      setTasks(prev => 
+        prev.map(t => ({
+          ...t,
+          subtasks: t.subtasks ? t.subtasks.map((st: any) => 
+            st.id === draggableId ? { ...st, status: newStatus } : st
+          ) : [],
+        }))
+      );
+    } else {
+      setTasks(prev => 
+        prev.map(t => 
+          t.id === draggableId ? { ...t, status: newStatus } : t
+        )
+      );
     }
     
-    // Immediate state reset
-    setIsDragging(false);
-    setDraggedTask(null);
-    
-    // smart-drop-menu: removed Smart Drop Menu state reset
-    
-    // Callback after state update (only when status changes)
-    if (onTaskUpdate && !isMovingWithinSameColumn) {
-      const updatedTask = { ...task, status: newStatus };
-      onTaskUpdate(updatedTask);
-    }
+    // Success toast
+    toast.success(`Task moved to ${destination.droppableId}`);
   };
   
   // smart-drop-menu: removed all Smart Drop Menu related functions and effects
