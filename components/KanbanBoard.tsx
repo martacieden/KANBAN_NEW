@@ -1827,9 +1827,9 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 console.log('Rendering subtasks for task:', task.id, 'subtasks:', task.subtasks);
                 return true;
               })() && (
-                <div className="ml-6 mt-2 space-y-2">
+                <div className="ml-6 mt-2 space-y-2 subtasks-container">
                   {task.subtasks.map((subtask: any, subtaskIndex: number) => (
-                    <div key={subtask.id}>
+                    <div key={subtask.id} className="subtask-item">
                       {renderSubtaskContent(subtask)}
                     </div>
                   ))}
@@ -2248,23 +2248,70 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
               will-change: transform, box-shadow;
               transform-origin: center;
-              margin-bottom: 8px; /* Consistent spacing between cards */
+              margin-bottom: 8px !important; /* Consistent spacing between cards */
+              margin-top: 0 !important;
+              margin-left: 0 !important;
+              margin-right: 0 !important;
             }
             
             /* Ensure consistent spacing between cards */
             .kanban-card:last-child {
-              margin-bottom: 0;
+              margin-bottom: 0 !important;
+            }
+            
+            /* Ensure consistent spacing for all card containers */
+            [data-rbd-draggable-id] {
+              margin-bottom: 8px !important;
+            }
+            
+            [data-rbd-draggable-id]:last-child {
+              margin-bottom: 0 !important;
             }
             
             /* Ensure subtasks are properly contained within the card */
             .kanban-card .ml-6 {
               margin-left: 1.5rem;
               margin-top: 0.5rem;
+              margin-bottom: 0 !important;
+            }
+            
+            /* Ensure subtasks don't affect main card spacing */
+            .kanban-card .space-y-2 {
+              margin-bottom: 0 !important;
+            }
+            
+            /* Ensure subtasks container doesn't affect spacing */
+            .subtasks-container {
+              margin-bottom: 0 !important;
+              padding-bottom: 0 !important;
+            }
+            
+            /* Ensure individual subtask items don't affect spacing */
+            .subtask-item {
+              margin-bottom: 0.5rem !important;
+            }
+            
+            .subtask-item:last-child {
+              margin-bottom: 0 !important;
             }
             
             /* Ensure subtask cards have proper spacing */
             .kanban-card .space-y-2 > div {
               margin-bottom: 0.5rem;
+            }
+            
+            /* Ensure column container has consistent spacing */
+            .kanban-column .drop-zone {
+              gap: 8px !important;
+            }
+            
+            /* Ensure all task containers have consistent spacing */
+            .kanban-column [data-rbd-droppable-id] > div {
+              margin-bottom: 8px !important;
+            }
+            
+            .kanban-column [data-rbd-droppable-id] > div:last-child {
+              margin-bottom: 0 !important;
             }
             
             .kanban-card .space-y-2 > div:last-child {
