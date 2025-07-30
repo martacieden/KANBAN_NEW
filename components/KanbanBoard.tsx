@@ -1688,7 +1688,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
           </div>
 
           {/* Quick Filter Pills */}
-          <div className="px-6 flex flex-wrap gap-2 mb-2">
+          <div className="px-6 flex flex-wrap gap-2 mb-2 justify-between">
 
             <button
               onClick={() => toggleQuickFilter('assignedToMe')}
@@ -1914,6 +1914,21 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 </svg>
               )}
             </button>
+            
+            {/* Aging Filter on the right */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-700">Aging:</label>
+              <select
+                value={agingFilter}
+                onChange={(e) => setAgingFilter(e.target.value)}
+                className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+              >
+                <option value="all">All Tasks</option>
+                <option value="7">7+ Days</option>
+                <option value="14">14+ Days</option>
+                <option value="30">30+ Days</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -1956,27 +1971,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 <span className="text-base font-semibold text-gray-900">{taskMetrics.doneNotValidated}</span>
                 <span className="text-sm text-gray-600">Not Validated</span>
               </div>
-            </div>
-            
-            {/* Filters on the right */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-gray-700">Aging:</label>
-                <select
-                  value={agingFilter}
-                  onChange={(e) => setAgingFilter(e.target.value)}
-                  className="text-xs border border-gray-300 rounded px-2 py-1"
-                >
-                  <option value="all">All Tasks</option>
-                  <option value="7">7+ Days</option>
-                  <option value="14">14+ Days</option>
-                  <option value="30">30+ Days</option>
-                </select>
-              </div>
-              
-
-
-
             </div>
           </div>
         </div>
@@ -2801,11 +2795,14 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                               {columnTasks.map((task: any, idx: number) => {
                                                 const elements = [];
                                                 
-                                                // Add subtasks first (before parent task) if expanded
+                                                // Add parent task
+                                                elements.push(renderCard(task, false, idx));
+                                                
+                                                // Add subtasks as separate draggable elements if expanded
                                                 if (expandedSubtasks[task.id] && task.subtasks) {
                                                   task.subtasks.forEach((subtask: any, subtaskIdx: number) => {
                                                     elements.push(
-                                                      <Draggable key={subtask.id} draggableId={subtask.id} index={idx + subtaskIdx}>
+                                                      <Draggable key={subtask.id} draggableId={subtask.id} index={idx + 1 + subtaskIdx}>
                                                         {(provided, snapshot) => (
                                                           <div
                                                             ref={provided.innerRef}
@@ -2829,9 +2826,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                                     );
                                                   });
                                                 }
-                                                
-                                                // Add parent task after subtasks
-                                                elements.push(renderCard(task, false, idx + (expandedSubtasks[task.id] && task.subtasks ? task.subtasks.length : 0)));
                                                 
                                                 return elements;
                                               }).flat()}
