@@ -2801,14 +2801,11 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                               {columnTasks.map((task: any, idx: number) => {
                                                 const elements = [];
                                                 
-                                                // Add parent task
-                                                elements.push(renderCard(task, false, idx));
-                                                
-                                                // Add subtasks as separate draggable elements if expanded
+                                                // Add subtasks first (before parent task) if expanded
                                                 if (expandedSubtasks[task.id] && task.subtasks) {
                                                   task.subtasks.forEach((subtask: any, subtaskIdx: number) => {
                                                     elements.push(
-                                                      <Draggable key={subtask.id} draggableId={subtask.id} index={idx + 1 + subtaskIdx}>
+                                                      <Draggable key={subtask.id} draggableId={subtask.id} index={idx + subtaskIdx}>
                                                         {(provided, snapshot) => (
                                                           <div
                                                             ref={provided.innerRef}
@@ -2832,6 +2829,9 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                                     );
                                                   });
                                                 }
+                                                
+                                                // Add parent task after subtasks
+                                                elements.push(renderCard(task, false, idx + (expandedSubtasks[task.id] && task.subtasks ? task.subtasks.length : 0)));
                                                 
                                                 return elements;
                                               }).flat()}
