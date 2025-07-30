@@ -1408,6 +1408,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
   // Function to render subtask content without Draggable wrapper
   const renderSubtaskContent = useCallback((subtask: any) => {
+    // Debug logging
+    console.log('Rendering subtask:', subtask);
     const showAttachments = cardFields.attachments;
     const showComments = cardFields.comments;
     
@@ -1448,7 +1450,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
           {/* Name */}
           {cardFields.name && (
             <div className="font-medium text-sm text-[#1c2024] mb-2">
-              {subtask.name}
+              {subtask.title || subtask.name}
             </div>
           )}
           
