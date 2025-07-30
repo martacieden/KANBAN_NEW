@@ -1241,6 +1241,17 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     
     setDraggedTask(task || null);
     
+    // Add mouse move listener for drag preview positioning
+    const handleMouseMove = (e: MouseEvent) => {
+      const draggingElement = document.querySelector('[data-rbd-dragging="true"]');
+      if (draggingElement) {
+        (draggingElement as HTMLElement).style.setProperty('--x', `${e.clientX}px`);
+        (draggingElement as HTMLElement).style.setProperty('--y', `${e.clientY}px`);
+      }
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    
     // smart-drop-menu: removed checkForHiddenColumns call
   };
 
@@ -1256,6 +1267,16 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     }
     
     document.body.classList.remove('dragging');
+    
+    // Remove mouse move listener
+    const handleMouseMove = (e: MouseEvent) => {
+      const draggingElement = document.querySelector('[data-rbd-dragging="true"]');
+      if (draggingElement) {
+        (draggingElement as HTMLElement).style.setProperty('--x', `${e.clientX}px`);
+        (draggingElement as HTMLElement).style.setProperty('--y', `${e.clientY}px`);
+      }
+    };
+    document.removeEventListener('mousemove', handleMouseMove);
     
     const wasTaskDrag = draggedTask !== null;
     setDraggedTask(null);
@@ -2382,7 +2403,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               pointer-events: none !important;
               opacity: 1 !important;
               visibility: visible !important;
-              position: relative !important;
+              position: fixed !important;
+              will-change: transform !important;
             }
             
             /* Ensure drag preview is positioned exactly at cursor */
@@ -2396,6 +2418,15 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               opacity: 1 !important;
               visibility: visible !important;
               display: block !important;
+              position: fixed !important;
+              z-index: 99999 !important;
+            }
+            
+            /* Ensure drag preview is always on top */
+            [data-rbd-draggable-id][data-rbd-dragging="true"] {
+              position: fixed !important;
+              z-index: 99999 !important;
+              pointer-events: none !important;
             }
             
             .kanban-column {
@@ -2473,6 +2504,16 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               z-index: 99999 !important;
               pointer-events: none !important;
               position: fixed !important;
+            }
+            
+            /* Ensure drag preview follows cursor exactly */
+            [data-rbd-draggable-id][data-rbd-dragging="true"] {
+              position: fixed !important;
+              top: 0 !important;
+              left: 0 !important;
+              transform: translate(var(--x, 0), var(--y, 0)) scale(1.02) !important;
+              pointer-events: none !important;
+              z-index: 99999 !important;
             }
             
             /* Ensure drag preview stays visible during column transitions */
