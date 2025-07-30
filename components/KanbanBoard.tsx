@@ -590,7 +590,7 @@ const generateAdditionalTasks = () => {
     { name: "Compliance Team", initials: "CT", department: "Legal" }
   ];
 
-  for (let i = 17; i <= 350; i++) {
+  for (let i = 17; i <= 66; i++) {
     // Use a deterministic seed based on the task index
     const random = seededRandom(i * 12345);
     
