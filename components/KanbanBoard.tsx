@@ -1792,7 +1792,10 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                     {subtasksCount > 0 && (
                       <div 
                         className="flex items-center gap-1 cursor-pointer select-none hover:bg-gray-100 rounded px-0.5 py-0 transition-colors duration-100 ease-out"
-                        onClick={() => setExpandedSubtasks(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
+                        onClick={() => {
+                          console.log('Toggling subtasks for task:', task.id, 'current state:', expandedSubtasks[task.id]);
+                          setExpandedSubtasks(prev => ({ ...prev, [task.id]: !prev[task.id] }));
+                        }}
                       >
                         {expandedSubtasks[task.id] ? (
                           <ChevronDown className="w-4 h-4 text-[#8b8d98]" />
@@ -1820,7 +1823,10 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 )}
               </CardContent>
               {/* Render subtasks when expanded */}
-              {expandedSubtasks[task.id] && task.subtasks && (
+              {expandedSubtasks[task.id] && task.subtasks && (() => {
+                console.log('Rendering subtasks for task:', task.id, 'subtasks:', task.subtasks);
+                return true;
+              })() && (
                 <div className="ml-6 mt-2 space-y-2">
                   {task.subtasks.map((subtask: any, subtaskIndex: number) => (
                     <div key={subtask.id}>
