@@ -1241,14 +1241,47 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     
     setDraggedTask(task || null);
     
+    // Create custom drag preview
+    const createDragPreview = () => {
+      const draggingElement = document.querySelector('[data-rbd-dragging="true"]');
+      if (draggingElement) {
+        const clone = draggingElement.cloneNode(true) as HTMLElement;
+        clone.style.position = 'fixed';
+        clone.style.zIndex = '99999';
+        clone.style.pointerEvents = 'none';
+        clone.style.opacity = '0.8';
+        clone.style.transform = 'scale(1.02)';
+        clone.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
+        clone.style.border = '2px solid rgb(59, 130, 246)';
+        clone.style.borderRadius = '8px';
+        clone.style.backgroundColor = 'white';
+        clone.id = 'custom-drag-preview';
+        document.body.appendChild(clone);
+        return clone;
+      }
+      return null;
+    };
+    
     // Add mouse move listener for drag preview positioning
     const handleMouseMove = (e: MouseEvent) => {
       const draggingElement = document.querySelector('[data-rbd-dragging="true"]');
+      const customPreview = document.getElementById('custom-drag-preview');
+      
       if (draggingElement) {
         (draggingElement as HTMLElement).style.setProperty('--x', `${e.clientX}px`);
         (draggingElement as HTMLElement).style.setProperty('--y', `${e.clientY}px`);
       }
+      
+      if (customPreview) {
+        customPreview.style.left = `${e.clientX + 10}px`;
+        customPreview.style.top = `${e.clientY + 10}px`;
+      }
     };
+    
+    // Create custom preview after a short delay
+    setTimeout(() => {
+      createDragPreview();
+    }, 10);
     
     document.addEventListener('mousemove', handleMouseMove);
     
@@ -1268,15 +1301,28 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     
     document.body.classList.remove('dragging');
     
-    // Remove mouse move listener
+    // Remove mouse move listener and custom preview
     const handleMouseMove = (e: MouseEvent) => {
       const draggingElement = document.querySelector('[data-rbd-dragging="true"]');
+      const customPreview = document.getElementById('custom-drag-preview');
+      
       if (draggingElement) {
         (draggingElement as HTMLElement).style.setProperty('--x', `${e.clientX}px`);
         (draggingElement as HTMLElement).style.setProperty('--y', `${e.clientY}px`);
       }
+      
+      if (customPreview) {
+        customPreview.style.left = `${e.clientX + 10}px`;
+        customPreview.style.top = `${e.clientY + 10}px`;
+      }
     };
     document.removeEventListener('mousemove', handleMouseMove);
+    
+    // Remove custom drag preview
+    const customPreview = document.getElementById('custom-drag-preview');
+    if (customPreview) {
+      customPreview.remove();
+    }
     
     const wasTaskDrag = draggedTask !== null;
     setDraggedTask(null);
@@ -2516,10 +2562,44 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               z-index: 99999 !important;
             }
             
+            /* Force all dragged elements to be visible */
+            *[data-rbd-dragging="true"] {
+              opacity: 1 !important;
+              visibility: visible !important;
+              display: block !important;
+              position: fixed !important;
+              z-index: 99999 !important;
+            }
+            
+            /* Ensure drag preview is never hidden */
+            [data-rbd-draggable-id][data-rbd-dragging="true"] * {
+              opacity: 1 !important;
+              visibility: visible !important;
+              display: block !important;
+            }
+            
             /* Ensure drag preview stays visible during column transitions */
             [data-rbd-droppable-id] {
               opacity: 1 !important;
               visibility: visible !important;
+            }
+            
+            /* Ensure drag preview is always visible regardless of state */
+            [data-rbd-draggable-id] {
+              opacity: 1 !important;
+              visibility: visible !important;
+            }
+            
+            /* Force drag preview to be visible during any drag operation */
+            .react-beautiful-dnd-dragging,
+            [data-rbd-dragging="true"],
+            [data-rbd-draggable-id][data-rbd-dragging="true"] {
+              opacity: 1 !important;
+              visibility: visible !important;
+              display: block !important;
+              position: fixed !important;
+              z-index: 99999 !important;
+              pointer-events: none !important;
             }
             
             /* Prevent any element from hiding during drag */
