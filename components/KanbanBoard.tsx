@@ -1245,11 +1245,17 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     const createDragPreview = () => {
       const draggingElement = document.querySelector('[data-rbd-dragging="true"]');
       if (draggingElement) {
+        // Remove any existing custom preview
+        const existingPreview = document.getElementById('custom-drag-preview');
+        if (existingPreview) {
+          existingPreview.remove();
+        }
+        
         const clone = draggingElement.cloneNode(true) as HTMLElement;
         clone.style.position = 'fixed';
         clone.style.zIndex = '2147483647';
         clone.style.pointerEvents = 'none';
-        clone.style.opacity = '0.9';
+        clone.style.opacity = '1';
         clone.style.transform = 'scale(1.02)';
         clone.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
         clone.style.border = '2px solid rgb(59, 130, 246)';
@@ -1257,7 +1263,16 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
         clone.style.backgroundColor = 'white';
         clone.style.top = '0';
         clone.style.left = '0';
+        clone.style.width = '300px';
+        clone.style.height = 'auto';
+        clone.style.maxWidth = '400px';
         clone.id = 'custom-drag-preview';
+        
+        // Force the preview to be visible
+        clone.style.display = 'block';
+        clone.style.visibility = 'visible';
+        clone.style.opacity = '1';
+        
         document.body.appendChild(clone);
         return clone;
       }
@@ -1266,17 +1281,14 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     
     // Add mouse move listener for drag preview positioning
     const handleMouseMove = (e: MouseEvent) => {
-      const draggingElement = document.querySelector('[data-rbd-dragging="true"]');
       const customPreview = document.getElementById('custom-drag-preview');
-      
-      if (draggingElement) {
-        (draggingElement as HTMLElement).style.setProperty('--x', `${e.clientX}px`);
-        (draggingElement as HTMLElement).style.setProperty('--y', `${e.clientY}px`);
-      }
       
       if (customPreview) {
         customPreview.style.left = `${e.clientX + 10}px`;
         customPreview.style.top = `${e.clientY + 10}px`;
+        customPreview.style.display = 'block';
+        customPreview.style.visibility = 'visible';
+        customPreview.style.opacity = '1';
       }
     };
     
@@ -1305,17 +1317,14 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     
     // Remove mouse move listener and custom preview
     const handleMouseMove = (e: MouseEvent) => {
-      const draggingElement = document.querySelector('[data-rbd-dragging="true"]');
       const customPreview = document.getElementById('custom-drag-preview');
-      
-      if (draggingElement) {
-        (draggingElement as HTMLElement).style.setProperty('--x', `${e.clientX}px`);
-        (draggingElement as HTMLElement).style.setProperty('--y', `${e.clientY}px`);
-      }
       
       if (customPreview) {
         customPreview.style.left = `${e.clientX + 10}px`;
         customPreview.style.top = `${e.clientY + 10}px`;
+        customPreview.style.display = 'block';
+        customPreview.style.visibility = 'visible';
+        customPreview.style.opacity = '1';
       }
     };
     document.removeEventListener('mousemove', handleMouseMove);
@@ -2576,15 +2585,25 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               z-index: 2147483647 !important;
             }
             
-            /* Ensure drag preview is ALWAYS on top of EVERYTHING */
+            /* HIDE the original drag preview completely */
             [data-rbd-dragging="true"],
             [data-rbd-draggable-id][data-rbd-dragging="true"],
-            .react-beautiful-dnd-dragging,
+            .react-beautiful-dnd-dragging {
+              opacity: 0 !important;
+              visibility: hidden !important;
+              display: none !important;
+              pointer-events: none !important;
+            }
+            
+            /* Show ONLY our custom preview */
             #custom-drag-preview {
               z-index: 2147483647 !important;
               position: fixed !important;
               top: 0 !important;
               left: 0 !important;
+              opacity: 1 !important;
+              visibility: visible !important;
+              display: block !important;
             }
             
             /* Force all dragged elements to be visible */
