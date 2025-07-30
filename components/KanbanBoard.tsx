@@ -1073,7 +1073,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   };
 
   const getTaskMetrics = () => {
-    const activeTasks = tasks.filter(t => !('archived' in t ? t.archived : false));
+    // Use the same filtered tasks that are displayed in columns
+    const activeTasks = filteredTasks.filter(t => !('archived' in t ? t.archived : false));
     const blockedTasks = activeTasks.filter(t => t.status === "blocked" || t.status === "needs_work");
     const doneTasks = activeTasks.filter(t => t.status === "done");
     const validatedTasks = activeTasks.filter(t => t.status === "validated");
@@ -1337,6 +1338,9 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       </Card>
     );
   }, [cardFields, onTaskClick]);
+
+  // Memoize task metrics to update when filters change
+  const taskMetrics = useMemo(() => getTaskMetrics(), [filteredTasks]);
 
   // Optimized card rendering with virtualization support
   const renderCard = useCallback((task: any, isSubtask = false, taskIndex = 0) => {
@@ -1937,32 +1941,32 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{getTaskMetrics().total}</span>
+                <span className="text-base font-semibold text-gray-900">{taskMetrics.total}</span>
                 <span className="text-sm text-gray-600">Total</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{getTaskMetrics().blocked}</span>
+                <span className="text-base font-semibold text-gray-900">{taskMetrics.blocked}</span>
                 <span className="text-sm text-gray-600">Blocked</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{getTaskMetrics().stuck}</span>
+                <span className="text-base font-semibold text-gray-900">{taskMetrics.stuck}</span>
                 <span className="text-sm text-gray-600">Stuck</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{getTaskMetrics().done}</span>
+                <span className="text-base font-semibold text-gray-900">{taskMetrics.done}</span>
                 <span className="text-sm text-gray-600">Done</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{getTaskMetrics().validated}</span>
+                <span className="text-base font-semibold text-gray-900">{taskMetrics.validated}</span>
                 <span className="text-sm text-gray-600">Validated</span>
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{getTaskMetrics().doneNotValidated}</span>
+                <span className="text-base font-semibold text-gray-900">{taskMetrics.doneNotValidated}</span>
                 <span className="text-sm text-gray-600">Not Validated</span>
               </div>
             </div>
