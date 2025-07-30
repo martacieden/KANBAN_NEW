@@ -1398,7 +1398,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 }`}
               >
 
-              <CardContent className={`${getDynamicPadding()} ${isSubtask ? "bg-gray-50/50 border-l-2 border-l-gray-300 shadow-sm" : ""}`}>
+              <CardContent className={`${getDynamicPadding()}`}>
 
 
                                 {/* ID line */}
@@ -1595,19 +1595,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                   </div>
                 )}
               </CardContent>
-              {/* Render subtasks when expanded */}
-              {expandedSubtasks[task.id] && task.subtasks && (() => {
-                console.log('Rendering subtasks for task:', task.id, 'subtasks:', task.subtasks);
-                return true;
-              })() && (
-                <div className="ml-6 mt-2 space-y-2 subtasks-container">
-                  {task.subtasks.map((subtask: any, subtaskIndex: number) => (
-                    <div key={subtask.id} className="subtask-item">
-                      {renderSubtaskContent(subtask)}
-                    </div>
-                  ))}
-                </div>
-              )}
             </Card>
           </div>
         )}
@@ -2812,8 +2799,42 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                           ) : (
                                             <div className="space-y-2">
                                               {columnTasks.map((task: any, idx: number) => {
-                                                return renderCard(task, false, idx);
-                                              })}
+                                                const elements = [];
+                                                
+                                                // Add parent task
+                                                elements.push(renderCard(task, false, idx));
+                                                
+                                                // Add subtasks as separate draggable elements if expanded
+                                                if (expandedSubtasks[task.id] && task.subtasks) {
+                                                  task.subtasks.forEach((subtask: any, subtaskIdx: number) => {
+                                                    elements.push(
+                                                      <Draggable key={subtask.id} draggableId={subtask.id} index={idx + 1 + subtaskIdx}>
+                                                        {(provided, snapshot) => (
+                                                          <div
+                                                            ref={provided.innerRef}
+                                                            {...provided.draggableProps}
+                                                            className="relative ml-6"
+                                                            style={provided.draggableProps.style}
+                                                          >
+                                                            <Card 
+                                                              {...provided.dragHandleProps}
+                                                              className={`kanban-card group border-[#e8e8ec] rounded-2xl w-full cursor-grab bg-white border-l-2 border-l-gray-300 shadow-sm ${
+                                                                snapshot.isDragging 
+                                                                  ? 'dragging shadow-xl shadow-black/20 border-blue-300 cursor-grabbing transition-none' 
+                                                                  : 'shadow-none hover:shadow-lg hover:shadow-black/15 hover:border-gray-300 transition-all duration-200 ease-out'
+                                                              }`}
+                                                            >
+                                                              {renderSubtaskContent(subtask)}
+                                                            </Card>
+                                                          </div>
+                                                        )}
+                                                      </Draggable>
+                                                    );
+                                                  });
+                                                }
+                                                
+                                                return elements;
+                                              }).flat()}
                                             </div>
                                           )}
                                           {provided.placeholder}
