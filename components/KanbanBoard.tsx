@@ -1406,6 +1406,147 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
 
 
+  // Function to render subtask content without Draggable wrapper
+  const renderSubtaskContent = useCallback((subtask: any) => {
+    const showAttachments = cardFields.attachments;
+    const showComments = cardFields.comments;
+    
+    const visibleFields = {
+      taskId: cardFields.taskId,
+      name: cardFields.name !== false,
+      status: cardFields.status !== false,
+      description: cardFields.description && subtask.description,
+      tags: cardFields.tags && subtask.tags && subtask.tags.length > 0,
+      organization: cardFields.organization,
+      assignee: cardFields.assignee && subtask.teamMembers,
+      priority: cardFields.priority,
+      dueDate: cardFields.dueDate,
+      attachments: showAttachments,
+      comments: showComments,
+    };
+    
+    const visibleFieldCount = Object.values(visibleFields).filter(Boolean).length;
+    const getDynamicPadding = () => {
+      if (visibleFieldCount <= 2) return "p-2";
+      if (visibleFieldCount <= 4) return "p-3";
+      if (visibleFieldCount <= 6) return "p-4";
+      return "p-4";
+    };
+
+    return (
+      <Card className="kanban-card group border-[#e8e8ec] rounded-2xl w-full cursor-grab bg-gray-50/50 border-l-2 border-l-gray-300 shadow-sm">
+        <CardContent className={`${getDynamicPadding()}`}>
+          {/* ID line */}
+          {cardFields.taskId && (
+            <div className="flex items-center justify-between text-xs font-semibold text-[#60646c] mb-1">
+              <div className="flex items-center gap-1">
+                <span>{subtask.taskId}</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Name */}
+          {cardFields.name && (
+            <div className="font-medium text-sm text-[#1c2024] mb-2">
+              {subtask.name}
+            </div>
+          )}
+          
+          {/* Status */}
+          {cardFields.status && (() => {
+            const status = findStatusById(subtask.status);
+            if (status) {
+              return (
+                <div className="mb-2">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${status.color}`}>
+                    {status.title}
+                  </span>
+                </div>
+              );
+            }
+            return null;
+          })()}
+          
+          {/* Priority */}
+          {cardFields.priority && (
+            <div className="flex items-center gap-1 mb-2">
+              <span className="text-sm font-medium text-[#1c2024]">{subtask.priority || "Normal"}</span>
+            </div>
+          )}
+          
+          {/* Organization */}
+          {cardFields.organization && subtask.clientInfo && (
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: generateColorFromText(subtask.clientInfo) }}></div>
+              <span className="text-xs text-[#60646c]">{subtask.clientInfo}</span>
+            </div>
+          )}
+          
+          {/* Assignee */}
+          {cardFields.assignee && subtask.teamMembers && subtask.teamMembers.length > 0 && (
+            <div className="flex items-center gap-1 mb-2">
+              {subtask.teamMembers.slice(0, 3).map((assignee: any, index: number) => (
+                <div key={index} className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">
+                  {assignee.name.charAt(0)}
+                </div>
+              ))}
+              {subtask.teamMembers.length > 3 && (
+                <span className="text-xs text-[#60646c]">+{subtask.teamMembers.length - 3}</span>
+              )}
+            </div>
+          )}
+          
+          {/* Tags */}
+          {cardFields.tags && subtask.tags && subtask.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {subtask.tags.slice(0, 3).map((tag: string, index: number) => (
+                <span key={index} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
+                  {tag}
+                </span>
+              ))}
+              {subtask.tags.length > 3 && (
+                <span className="text-xs text-[#60646c]">+{subtask.tags.length - 3}</span>
+              )}
+            </div>
+          )}
+          
+          {/* Due Date */}
+          {cardFields.dueDate && subtask.dueDate && (
+            <div className="text-sm text-[#1c2024] flex items-center gap-1 mb-2">
+              <span>Due:</span>
+              <span className="font-medium">{subtask.dueDate}</span>
+            </div>
+          )}
+          
+          {/* Description */}
+          {cardFields.description && subtask.description && (
+            <div className="text-sm text-[#60646c] mb-2 line-clamp-2">
+              {subtask.description}
+            </div>
+          )}
+          
+          {/* Attachments and Comments */}
+          {(cardFields.attachments || cardFields.comments) && (
+            <div className="flex items-center gap-1 mt-auto">
+              {cardFields.attachments && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#f3f3f3] text-xs text-[#60646c]">
+                  <Paperclip className="w-3 h-3" />
+                  <span>{subtask.attachmentCount || 0}</span>
+                </span>
+              )}
+              {cardFields.comments && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#f3f3f3] text-xs text-[#60646c]">
+                  <MessageCircle className="w-3 h-3" />
+                  <span>{subtask.commentCount || 0}</span>
+                </span>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }, [cardFields]);
+
   // Optimized card rendering with virtualization support
   const renderCard = useCallback((task: any, isSubtask = false, taskIndex = 0) => {
     const showSubtasks = task.subtasks && task.subtasks.length > 0;
@@ -1681,7 +1822,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 <div className="ml-6 mt-2 space-y-2">
                   {task.subtasks.map((subtask: any, subtaskIndex: number) => (
                     <div key={subtask.id}>
-                      {renderCard(subtask, true, subtaskIndex)}
+                      {renderSubtaskContent(subtask)}
                     </div>
                   ))}
                 </div>
