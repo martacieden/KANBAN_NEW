@@ -103,15 +103,15 @@ export default function Page() {
   const [settingsSearch, setSettingsSearch] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const taskCategories = [
-    { name: "All tasks", count: 303, active: true },
-    { name: "Budget", count: 99, active: false },
-    { name: "Philanthropy", count: 124, active: false },
-    { name: "Investment", count: 16, active: false },
-    { name: "Legal", count: 2, active: false },
+    { name: "All tasks", count: 66, active: true },
+    { name: "Budget", count: 12, active: false },
+    { name: "Philanthropy", count: 8, active: false },
+    { name: "Investment", count: 10, active: false },
+    { name: "Legal", count: 6, active: false },
     { name: "Travel", count: 6, active: false },
-    { name: "Food", count: 15, active: false, expanded: true },
-    { name: "HR", count: 6, active: false },
-    { name: "Accounting", count: 33, active: false },
+    { name: "Food", count: 8, active: false, expanded: true },
+    { name: "HR", count: 8, active: false },
+    { name: "Accounting", count: 8, active: false },
   ];
   const toggleCategory = (category: string) => {
     setExpandedCategories((prev) =>

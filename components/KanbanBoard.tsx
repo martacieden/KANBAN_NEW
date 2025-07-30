@@ -1204,7 +1204,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     };
 
     return (
-      <Card className="kanban-card group border-[#e8e8ec] rounded-2xl w-full cursor-grab bg-gray-50/50 border-l-2 border-l-gray-300 shadow-sm">
+      <Card className="kanban-card group border-[#e8e8ec] rounded-2xl w-full cursor-grab bg-white border-l-2 border-l-gray-300 shadow-sm">
         <CardContent className={`${getDynamicPadding()}`}>
           {/* ID line */}
           {cardFields.taskId && (
