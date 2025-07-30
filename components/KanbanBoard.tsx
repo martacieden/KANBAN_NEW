@@ -1676,13 +1676,17 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                   </div>
                 )}
               </CardContent>
+              {/* Render subtasks when expanded */}
+              {expandedSubtasks[task.id] && task.subtasks && (
+                <div className="ml-6 mt-2 space-y-2">
+                  {task.subtasks.map((subtask: any, subtaskIndex: number) => (
+                    <div key={subtask.id}>
+                      {renderCard(subtask, true, subtaskIndex)}
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
-            {/* Render subtasks when expanded */}
-            {expandedSubtasks[task.id] && task.subtasks && task.subtasks.map((subtask: any, subtaskIndex: number) => (
-              <div key={subtask.id} className="ml-6 mt-2">
-                {renderCard(subtask, true, subtaskIndex)}
-              </div>
-            ))}
           </div>
         )}
       </Draggable>
@@ -2100,6 +2104,21 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             
             /* Ensure consistent spacing between cards */
             .kanban-card:last-child {
+              margin-bottom: 0;
+            }
+            
+            /* Ensure subtasks are properly contained within the card */
+            .kanban-card .ml-6 {
+              margin-left: 1.5rem;
+              margin-top: 0.5rem;
+            }
+            
+            /* Ensure subtask cards have proper spacing */
+            .kanban-card .space-y-2 > div {
+              margin-bottom: 0.5rem;
+            }
+            
+            .kanban-card .space-y-2 > div:last-child {
               margin-bottom: 0;
             }
             
