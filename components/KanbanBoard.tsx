@@ -1232,7 +1232,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     setDraggedTask(task || null);
   };
 
-  // 4. End dragging (onDragEnd) - Restore scroll
   // 4. End dragging (onDragEnd) - Простий підхід
   const onDragEnd = (result: DropResult) => {
     setIsDragging(false);
