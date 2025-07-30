@@ -1170,13 +1170,12 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
 
 
-  // Function to render subtask content without Draggable wrapper
+  // Function to render subtask content with identical structure to main tasks
   const renderSubtaskContent = useCallback((subtask: any) => {
-    // Debug logging
-    console.log('Rendering subtask:', subtask);
     const showAttachments = cardFields.attachments;
     const showComments = cardFields.comments;
     
+    // Calculate which fields are actually visible for this specific subtask
     const visibleFields = {
       taskId: cardFields.taskId,
       name: cardFields.name !== false,
@@ -1191,12 +1190,16 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       comments: showComments,
     };
     
+    // Count visible fields to determine card complexity
     const visibleFieldCount = Object.values(visibleFields).filter(Boolean).length;
+    const isSimple = visibleFieldCount <= 3; // Simple if 3 or fewer fields visible
+    
+    // Calculate dynamic padding based on visible fields
     const getDynamicPadding = () => {
-      if (visibleFieldCount <= 2) return "p-2";
-      if (visibleFieldCount <= 4) return "p-3";
-      if (visibleFieldCount <= 6) return "p-4";
-      return "p-4";
+      if (visibleFieldCount <= 2) return "p-2"; // Very simple cards
+      if (visibleFieldCount <= 4) return "p-3"; // Simple cards
+      if (visibleFieldCount <= 6) return "p-4"; // Medium cards
+      return "p-4"; // Complex cards
     };
 
     return (
@@ -1208,110 +1211,132 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               <div className="flex items-center gap-1">
                 <span>{subtask.taskId}</span>
               </div>
+              <div className="flex items-center gap-1">
+                {/* Status Label */}
+                {cardFields.status !== false && (() => {
+                  const status = findStatusById(subtask.status);
+                  if (status) {
+                    return (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${status.color}`}>
+                        {status.title}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
             </div>
           )}
           
-          {/* Name */}
-          {cardFields.name && (
-            <div className="font-medium text-sm text-[#1c2024] mb-2">
-              {subtask.title || subtask.name}
-            </div>
-          )}
-          
-          {/* Status */}
-          {cardFields.status && (() => {
-            const status = findStatusById(subtask.status);
-            if (status) {
-              return (
-                <div className="mb-2">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${status.color}`}>
-                    {status.title}
-                  </span>
-                </div>
-              );
-            }
-            return null;
-          })()}
-          
-          {/* Priority */}
-          {cardFields.priority && (
-            <div className="flex items-center gap-1 mb-2">
-              <span className="text-sm font-medium text-[#1c2024]">{subtask.priority || "Normal"}</span>
-            </div>
-          )}
-          
-          {/* Organization */}
-          {cardFields.organization && subtask.clientInfo && (
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-4 h-4 rounded-full" style={{ backgroundColor: generateColorFromText(subtask.clientInfo) }}></div>
-              <span className="text-xs text-[#60646c]">{subtask.clientInfo}</span>
-            </div>
-          )}
-          
-          {/* Assignee */}
-          {cardFields.assignee && subtask.teamMembers && subtask.teamMembers.length > 0 && (
-            <div className="flex items-center gap-1 mb-2">
-              {subtask.teamMembers.slice(0, 3).map((assignee: any, index: number) => (
-                <div key={index} className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">
-                  {assignee.name.charAt(0)}
-                </div>
-              ))}
-              {subtask.teamMembers.length > 3 && (
-                <span className="text-xs text-[#60646c]">+{subtask.teamMembers.length - 3}</span>
-              )}
-            </div>
-          )}
-          
-          {/* Tags */}
-          {cardFields.tags && subtask.tags && subtask.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2">
-              {subtask.tags.slice(0, 3).map((tag: string, index: number) => (
-                <span key={index} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
-                  {tag}
-                </span>
-              ))}
-              {subtask.tags.length > 3 && (
-                <span className="text-xs text-[#60646c]">+{subtask.tags.length - 3}</span>
-              )}
-            </div>
-          )}
-          
-          {/* Due Date */}
-          {cardFields.dueDate && subtask.dueDate && (
-            <div className="text-sm text-[#1c2024] flex items-center gap-1 mb-2">
-              <span>Due:</span>
-              <span className="font-medium">{subtask.dueDate}</span>
+          {/* Title (Name) */}
+          {cardFields.name !== false && (
+            <div className="mb-1">
+              <div 
+                className="text-sm font-semibold text-[#1c2024] cursor-pointer hover:text-blue-600 transition-colors"
+                onClick={() => onTaskClick && onTaskClick(subtask)}
+              >
+                {subtask.title}
+              </div>
             </div>
           )}
           
           {/* Description */}
           {cardFields.description && subtask.description && (
-            <div className="text-sm text-[#60646c] mb-2 line-clamp-2">
-              {subtask.description}
+            <div className="text-sm text-[#8b8d98] mb-2 line-clamp-3">{subtask.description}</div>
+          )}
+          
+          {/* Tags */}
+          {cardFields.tags && subtask.tags && subtask.tags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 mb-2">
+              {subtask.tags.slice(0, 3).map((tag: string, index: number) => (
+                <span key={index} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                  {tag}
+                </span>
+              ))}
+              {subtask.tags.length > 3 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600 border border-gray-300">
+                  +{subtask.tags.length - 3}
+                </span>
+              )}
             </div>
           )}
           
-          {/* Attachments and Comments */}
-          {(cardFields.attachments || cardFields.comments) && (
-            <div className="flex items-center gap-1 mt-auto">
-              {cardFields.attachments && (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#f3f3f3] text-xs text-[#60646c]">
-                  <Paperclip className="w-3 h-3" />
-                  <span>{subtask.attachmentCount || 0}</span>
-                </span>
+          {/* Assignee avatars */}
+          {cardFields.assignee && subtask.teamMembers && (
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex -space-x-2 ml-0">
+                {subtask.teamMembers.slice(0, 3).map((member: any, index: number) => (
+                  <img key={index} src={member.avatarUrl} alt={member.name} className="w-6 h-6 rounded-full border-2 border-white" />
+                ))}
+                {subtask.teamMembers.length > 3 && (
+                  <span className="w-6 h-6 rounded-full bg-[#f3f3f3] text-xs text-[#60646c] flex items-center justify-center border-2 border-white">
+                    +{subtask.teamMembers.length - 3}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Priority, Due */}
+          {(cardFields.priority || cardFields.dueDate) && (
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                {/* Priority - invisible but takes space when hidden */}
+                <div className={`flex items-center gap-2 ${cardFields.priority ? '' : 'invisible'}`}>
+                  {/* Different icons for each priority */}
+                  {subtask.priority === "Emergency" && (
+                    <div className="flex">
+                      <ChevronUp className="w-4 h-4 text-gray-600 -mr-1" />
+                      <ChevronUp className="w-4 h-4 text-gray-600" />
+                    </div>
+                  )}
+                  {subtask.priority === "High" && (
+                    <ChevronUp className="w-4 h-4 text-gray-600" />
+                  )}
+                  {(subtask.priority === "Normal" || !subtask.priority) && (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-minus w-4 h-4 text-gray-600">
+                      <path d="M5 12h14"></path>
+                    </svg>
+                  )}
+                  {subtask.priority === "Low" && (
+                    <ChevronDown className="w-4 h-4 text-gray-600" />
+                  )}
+                  <span className="text-sm font-medium text-[#1c2024]">{subtask.priority || "Normal"}</span>
+                </div>
+              </div>
+              {/* Due date */}
+              {cardFields.dueDate && (
+                <div className="text-sm text-[#1c2024] flex items-center gap-1">
+                  <span>Due:</span>
+                  <span className="font-medium">{subtask.dueDate}</span>
+                </div>
               )}
-              {cardFields.comments && (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#f3f3f3] text-xs text-[#60646c]">
-                  <MessageCircle className="w-3 h-3" />
-                  <span>{subtask.commentCount || 0}</span>
-                </span>
-              )}
+            </div>
+          )}
+          
+          {/* Attachments + Comments */}
+          {(showAttachments || showComments) && (
+            <div className="flex items-center gap-3 mt-2 w-full">
+              <div className="flex items-center gap-1 ml-auto">
+                {showAttachments && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#f3f3f3] text-xs text-[#60646c]">
+                    <Paperclip className="w-3 h-3" />
+                    <span>{subtask.attachmentCount || 0}</span>
+                  </span>
+                )}
+                {showComments && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#f3f3f3] text-xs text-[#60646c]">
+                    <MessageCircle className="w-3 h-3" />
+                    <span>{subtask.commentCount || 0}</span>
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
     );
-  }, [cardFields]);
+  }, [cardFields, onTaskClick]);
 
   // Optimized card rendering with virtualization support
   const renderCard = useCallback((task: any, isSubtask = false, taskIndex = 0) => {
