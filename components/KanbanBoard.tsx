@@ -1247,14 +1247,16 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       if (draggingElement) {
         const clone = draggingElement.cloneNode(true) as HTMLElement;
         clone.style.position = 'fixed';
-        clone.style.zIndex = '99999';
+        clone.style.zIndex = '2147483647';
         clone.style.pointerEvents = 'none';
-        clone.style.opacity = '0.8';
+        clone.style.opacity = '0.9';
         clone.style.transform = 'scale(1.02)';
         clone.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
         clone.style.border = '2px solid rgb(59, 130, 246)';
         clone.style.borderRadius = '8px';
         clone.style.backgroundColor = 'white';
+        clone.style.top = '0';
+        clone.style.left = '0';
         clone.id = 'custom-drag-preview';
         document.body.appendChild(clone);
         return clone;
@@ -2465,14 +2467,26 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               visibility: visible !important;
               display: block !important;
               position: fixed !important;
-              z-index: 99999 !important;
+              z-index: 2147483647 !important;
+              top: 0 !important;
+              left: 0 !important;
             }
             
-            /* Ensure drag preview is always on top */
+            /* Ensure drag preview is ALWAYS on top of EVERYTHING */
             [data-rbd-draggable-id][data-rbd-dragging="true"] {
               position: fixed !important;
-              z-index: 99999 !important;
+              z-index: 2147483647 !important;
               pointer-events: none !important;
+              top: 0 !important;
+              left: 0 !important;
+            }
+            
+            /* Force ALL dragged elements to be on top */
+            *[data-rbd-dragging="true"] {
+              z-index: 2147483647 !important;
+              position: fixed !important;
+              top: 0 !important;
+              left: 0 !important;
             }
             
             .kanban-column {
@@ -2547,7 +2561,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             .react-beautiful-dnd-dragging {
               opacity: 1 !important;
               visibility: visible !important;
-              z-index: 99999 !important;
+              z-index: 2147483647 !important;
               pointer-events: none !important;
               position: fixed !important;
             }
@@ -2559,7 +2573,18 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               left: 0 !important;
               transform: translate(var(--x, 0), var(--y, 0)) scale(1.02) !important;
               pointer-events: none !important;
-              z-index: 99999 !important;
+              z-index: 2147483647 !important;
+            }
+            
+            /* Ensure drag preview is ALWAYS on top of EVERYTHING */
+            [data-rbd-dragging="true"],
+            [data-rbd-draggable-id][data-rbd-dragging="true"],
+            .react-beautiful-dnd-dragging,
+            #custom-drag-preview {
+              z-index: 2147483647 !important;
+              position: fixed !important;
+              top: 0 !important;
+              left: 0 !important;
             }
             
             /* Force all dragged elements to be visible */
@@ -2568,7 +2593,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               visibility: visible !important;
               display: block !important;
               position: fixed !important;
-              z-index: 99999 !important;
+              z-index: 2147483647 !important;
             }
             
             /* Ensure drag preview is never hidden */
@@ -2598,7 +2623,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               visibility: visible !important;
               display: block !important;
               position: fixed !important;
-              z-index: 99999 !important;
+              z-index: 2147483647 !important;
               pointer-events: none !important;
             }
             
