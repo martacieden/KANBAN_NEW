@@ -1,0 +1,28 @@
+{
+  "Rejected": [],
+  "Terminated": [],
+  "Done": [],
+  "Approved": [
+    "Done"
+  ],
+  "In Review": [
+    "Approved",
+    "Needs Input",
+    "Rejected"
+  ],
+  "Needs Input": [
+    "In Progress"
+  ],
+  "In Progress": [
+    "In Review"
+  ],
+  "To Do": [
+    "In Progress"
+  ],
+  "Planning": [
+    "To Do"
+  ],
+  "Idea": [
+    "Planning"
+  ]
+}

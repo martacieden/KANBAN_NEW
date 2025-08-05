@@ -4,6 +4,38 @@ import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Paperclip, MoreHorizontal, Share2, X } from "lucide-react";
 
+// Status badge color mapping - preserves original colors for badges
+const statusBadgeColorMap: Record<string, string> = {
+  // CREATED group
+  "draft": "bg-gray-100 text-gray-700",
+  "backlog": "bg-gray-100 text-gray-700", 
+  "to_do": "bg-gray-100 text-gray-700",
+  "new": "bg-gray-100 text-gray-700",
+  
+  // ACTIVE group
+  "in_progress": "bg-blue-100 text-blue-700",
+  "working": "bg-blue-100 text-blue-700",
+  "ongoing": "bg-blue-100 text-blue-700",
+  "doing": "bg-blue-100 text-blue-700",
+  "assigned": "bg-blue-100 text-blue-700",
+  
+  // PAUSED group
+  "blocked": "bg-yellow-100 text-yellow-700",
+  "needs_input": "bg-yellow-100 text-yellow-700",
+  "needs_work": "bg-yellow-100 text-yellow-700",
+  "on_hold": "bg-yellow-100 text-yellow-700",
+  
+  // COMPLETED group
+  "done": "bg-green-100 text-green-700",
+  "approved": "bg-green-100 text-green-700",
+  "validated": "bg-green-100 text-green-700",
+  
+  // REJECTED group
+  "rejected": "bg-red-100 text-red-700",
+  "canceled": "bg-red-100 text-red-700",
+  "closed": "bg-red-100 text-red-700",
+};
+
 interface Assignee {
   name: string;
   initials: string;
@@ -70,7 +102,7 @@ export const TaskPreview: React.FC<TaskPreviewProps> = ({ task, onClose }) => {
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             {task.status && (
-              <Badge className="bg-blue-100 text-blue-700 font-medium px-2 py-1 text-xs rounded">{task.status}</Badge>
+              <Badge className={`${statusBadgeColorMap[task.status] || "bg-blue-100 text-blue-700"} font-medium px-2 py-1 text-xs rounded`}>{task.status}</Badge>
             )}
             {task.createdAt && (
               <span className="text-xs text-[#8b8d98]">Created on {task.createdAt}</span>
@@ -119,7 +151,7 @@ export const TaskPreview: React.FC<TaskPreviewProps> = ({ task, onClose }) => {
                 <div>
                   <div className="text-[#8b8d98]">Status</div>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge className="bg-blue-100 text-blue-700 font-medium px-2 py-1 text-xs rounded">{task.status}</Badge>
+                    <Badge className={`${task.status ? statusBadgeColorMap[task.status] || "bg-blue-100 text-blue-700" : "bg-blue-100 text-blue-700"} font-medium px-2 py-1 text-xs rounded`}>{task.status}</Badge>
                   </div>
                 </div>
                 <div>

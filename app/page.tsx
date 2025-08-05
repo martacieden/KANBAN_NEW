@@ -102,21 +102,32 @@ export default function Page() {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsSearch, setSettingsSearch] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState("All tasks");
+  
+  // Calculate task counts for each category
+  const getTaskCount = (category: string) => {
+    if (category === "All tasks") return kanbanInitialTasks.length;
+    return kanbanInitialTasks.filter(task => task.category === category).length;
+  };
+
   const taskCategories = [
-    { name: "All tasks", count: 66, active: true },
-    { name: "Budget", count: 12, active: false },
-    { name: "Philanthropy", count: 8, active: false },
-    { name: "Investment", count: 10, active: false },
-    { name: "Legal", count: 6, active: false },
-    { name: "Travel", count: 6, active: false },
-    { name: "Food", count: 8, active: false, expanded: true },
-    { name: "HR", count: 8, active: false },
-    { name: "Accounting", count: 8, active: false },
+    { name: "All tasks", count: getTaskCount("All tasks"), active: activeCategory === "All tasks" },
+    { name: "Budget", count: getTaskCount("Budget"), active: activeCategory === "Budget" },
+    { name: "Philanthropy", count: getTaskCount("Philanthropy"), active: activeCategory === "Philanthropy" },
+    { name: "Investment", count: getTaskCount("Investment"), active: activeCategory === "Investment" },
+    { name: "Legal", count: getTaskCount("Legal"), active: activeCategory === "Legal" },
+    { name: "Travel", count: getTaskCount("Travel"), active: activeCategory === "Travel" },
+    { name: "Food", count: getTaskCount("Food"), active: activeCategory === "Food", expanded: true },
+    { name: "HR", count: getTaskCount("HR"), active: activeCategory === "HR" },
+    { name: "Accounting", count: getTaskCount("Accounting"), active: activeCategory === "Accounting" },
   ];
+  
   const toggleCategory = (category: string) => {
-    setExpandedCategories((prev) =>
-      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
-    );
+    setActiveCategory(category);
+    // Закривати прев'ю при зміні категорії
+    setSelectedTask(null);
+    // Очищати вибрані задачі
+    setSelectedTasks(new Set());
   };
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [modalStatus, setModalStatus] = useState<string | undefined>(undefined);
@@ -132,6 +143,7 @@ export default function Page() {
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeMenu, setActiveMenu] = useState('Tasks');
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
     checkbox: 40,
     title: 300,
@@ -187,31 +199,43 @@ export default function Page() {
     setSelectedTasks(new Set());
   }, [view]);
 
+  // Автоматично приховувати панель завдань при зміні меню (крім Tasks)
+  useEffect(() => {
+    if (activeMenu !== 'Tasks') {
+      setSidebarCollapsed(false); // Залишаємо сайдбар відкритим, але приховуємо панель завдань
+    }
+  }, [activeMenu]);
+
   return (
     <div className="flex h-screen bg-white">
       {/* Sidebar - fixed */}
       {!sidebarCollapsed && (
-        <div className="fixed top-0 left-0 h-screen z-30"><Sidebar /></div>
+        <div className="fixed top-0 left-0 h-screen z-30">
+          <Sidebar 
+            activeMenu={activeMenu} 
+            onMenuClick={(menu) => setActiveMenu(menu)} 
+          />
+        </div>
       )}
       <div className={`flex-1 flex flex-col min-w-0 ${!sidebarCollapsed ? 'ml-[72px]' : ''}`}>
         {/* TopBar - fixed */}
         <div className="fixed top-0 left-0 right-0 z-20 bg-white" style={{ left: !sidebarCollapsed ? '72px' : '0' }}><TopBar /></div>
         <div className="flex flex-1 min-h-0" style={{ marginTop: '56px' }}>
-          {/* Tasks Panel - sticky */}
-          {!sidebarCollapsed && (
-            <div className="w-64 bg-[#ffffff] border-r border-[#e8e8ec] flex flex-col sticky top-0 left-0 z-10 h-[calc(100vh-56px)]">
+          {/* Tasks Panel - sticky - only show when activeMenu is 'Tasks' */}
+          {!sidebarCollapsed && activeMenu === 'Tasks' && (
+            <div className="w-48 bg-[#ffffff] border-r border-[#e8e8ec] flex flex-col sticky top-0 left-0 z-10 h-[calc(100vh-56px)]">
               <div className="flex-1 p-4 overflow-y-auto">
                 <h3 className="text-lg font-semibold text-[#1c2024] mb-4">Tasks</h3>
                 <div className="space-y-1">
                   {taskCategories.map((category, index) => (
                     <div key={index}>
                       <div
-                        className={`flex items-center gap-2 justify-between px-3 py-2 rounded-lg cursor-pointer ${
+                        className={`flex items-center gap-2 justify-between px-2 py-1 rounded-lg cursor-pointer ${
                           category.active ? "bg-[#ebf3ff] text-[#004fc7]" : "text-[#60646c] hover:bg-[#f9f9fb]"
                         }`}
-                        onClick={() => category.name === "Food" && toggleCategory(category.name)}
+                        onClick={() => toggleCategory(category.name)}
                       >
-                        <span className="text-sm font-medium">{category.name}</span>
+                        <span className="text-xs font-medium">{category.name}</span>
                         {category.count && (
                           <Badge variant="secondary" className="bg-[#f0f0f3] text-[#60646c] text-xs">
                             {category.count}
@@ -221,7 +245,7 @@ export default function Page() {
                     </div>
                   ))}
                 </div>
-                <Button variant="ghost" className="w-full justify-start mt-4 text-[#60646c]">
+                <Button variant="ghost" className="w-full justify-start mt-3 text-[#60646c] h-8">
                   <Plus className="w-4 h-4 mr-2" />
                   New category
                 </Button>
@@ -238,8 +262,15 @@ export default function Page() {
                     <div className="flex items-center gap-3">
                       {/* Collapse Sidebar Button */}
                       <button
-                        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                        className="w-[28px] h-[28px] flex justify-center items-center flex-row border-solid border rounded-md bg-[#FFFFFF] border-[#E0E1E6] hover:bg-gray-100 transition-colors duration-150"
+                        onClick={() => {
+                          if (activeMenu === 'Tasks') {
+                            setSidebarCollapsed(!sidebarCollapsed);
+                          } else {
+                            // For other menus, just collapse the tasks panel
+                            setActiveMenu('Tasks');
+                          }
+                        }}
+                        className="w-[26px] h-[26px] flex justify-center items-center flex-row border-solid border rounded-md bg-[#FFFFFF] border-[#E0E1E6] hover:bg-gray-100 transition-colors duration-150"
                         title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                         aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                       >
@@ -258,7 +289,7 @@ export default function Page() {
                         )}
                       </button>
                       {/* Filters, View Setting, Search */}
-                      <Button variant="ghost" size="sm" className="text-[#60646c] relative">
+                      <Button variant="ghost" size="sm" className="text-xs text-[#60646c] relative h-8 px-2">
                         <Filter className="w-4 h-4 mr-2" />
                         Filters
                         {view === 'kanban' && activeFiltersCount > 0 && (
@@ -266,12 +297,18 @@ export default function Page() {
                             {activeFiltersCount}
                           </span>
                         )}
-
-
                       </Button>
+                      
+                      {/* Active Category Indicator */}
+                      {activeCategory !== "All tasks" && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg border border-blue-200">
+                          <span className="text-xs font-medium text-blue-700">Category:</span>
+                          <span className="text-xs font-semibold text-blue-800">{activeCategory}</span>
+                        </div>
+                      )}
                       <Popover open={showSettings} onOpenChange={setShowSettings}>
                         <PopoverTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-[#60646c]">
+                          <Button variant="ghost" size="sm" className="text-xs text-[#60646c] h-8 px-2">
                             <Settings className="w-4 h-4 mr-2" />
                             {view === 'list' 
                               ? `${getCurrentFields().filter(f => cardFields[f.key] !== false).length}/${getCurrentFields().length} columns`
@@ -353,7 +390,7 @@ export default function Page() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className={view === 'list' ? 'bg-[#0034dc] text-white' : 'text-[#8b8d98]'}
+                          className={`h-8 w-8 ${view === 'list' ? 'bg-[#0034dc] text-white' : 'text-[#8b8d98]'}`}
                           onClick={() => setView('list')}
                           aria-label="List view"
                         >
@@ -362,7 +399,7 @@ export default function Page() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className={view === 'kanban' ? 'bg-[#0034dc] text-white' : 'text-[#8b8d98]'}
+                          className={`h-8 w-8 ${view === 'kanban' ? 'bg-[#0034dc] text-white' : 'text-[#8b8d98]'}`}
                           onClick={() => setView('kanban')}
                           aria-label="Kanban view"
                         >
@@ -375,7 +412,7 @@ export default function Page() {
                             variant="ghost" 
                             size="sm" 
                             onClick={() => (window as any).kanbanExpandAll?.()}
-                            className="text-[#60646c] hover:text-[#1c2024]"
+                            className="text-xs text-[#60646c] hover:text-[#1c2024] px-2"
                             title="Expand all groups"
                           >
                             Expand all
@@ -384,21 +421,21 @@ export default function Page() {
                             variant="ghost" 
                             size="sm" 
                             onClick={() => (window as any).kanbanCollapseAll?.()}
-                            className="text-[#60646c] hover:text-[#1c2024]"
+                            className="text-xs text-[#60646c] hover:text-[#1c2024] px-2"
                             title="Collapse all groups"
                           >
                             Collapse all
                           </Button>
                         </>
                       )}
-                      <Button variant="ghost" size="sm" className="text-[#60646c]">
+                      <Button variant="ghost" size="sm" className="text-xs text-[#60646c] px-2">
                         <Share className="w-4 h-4 mr-2" />
                         Share
                       </Button>
-                      <Button variant="ghost" size="sm" className="text-[#60646c]">
+                      <Button variant="ghost" size="sm" className="text-xs text-[#60646c] px-2">
                         Actions
                       </Button>
-                      <Button onClick={() => { setModalStatus(undefined); setShowCreateModal(true); }} className="bg-[#0034dc] hover:bg-[#004fc7] text-white px-5">
+                      <Button onClick={() => { setModalStatus(undefined); setShowCreateModal(true); }} className="text-xs bg-[#0034dc] hover:bg-[#004fc7] text-white px-3 h-8">
                         <Plus className="w-4 h-4 mr-2" />
                         New task
                       </Button>
@@ -414,6 +451,8 @@ export default function Page() {
                   cardFields={cardFields}
                   setCardFields={setCardFields}
                   onTaskClick={setSelectedTask}
+                  onFiltersChange={updateFiltersCount}
+                  activeCategory={activeCategory}
                 />
               ) : (
                 <div className="flex-1 flex flex-col min-h-0">
@@ -427,23 +466,23 @@ export default function Page() {
                         <span className="text-blue-900 font-medium">Selected</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300">
+                        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300 px-2">
                           <FileText className="w-4 h-4 mr-2" />
                           Convert to subtask
                         </Button>
-                        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300">
+                        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300 px-2">
                           <Users className="w-4 h-4 mr-2" />
                           Assign users
                         </Button>
-                        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300">
+                        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300 px-2">
                           <Shield className="w-4 h-4 mr-2" />
                           Manage access
                         </Button>
-                        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300">
+                        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300 px-2">
                           <Copy className="w-4 h-4 mr-2" />
                           Duplicate
                         </Button>
-                        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300">
+                        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300 px-2">
                           <Archive className="w-4 h-4 mr-2" />
                           Archive
                         </Button>
@@ -451,7 +490,7 @@ export default function Page() {
                           variant="ghost" 
                           size="sm" 
                           onClick={() => setSelectedTasks(new Set())}
-                          className="text-gray-500 hover:text-gray-700 ml-2"
+                          className="text-gray-500 hover:text-gray-700 ml-2 px-2"
                         >
                           <X className="w-4 h-4" />
                         </Button>

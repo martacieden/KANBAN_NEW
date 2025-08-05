@@ -1,0 +1,189 @@
+[
+  {
+    "id": "GEN-ACC-001",
+    "title": "Accounting System Upgrade",
+    "category": "Accounting",
+    "status": "Created",
+    "stage": "Not started yet",
+    "subtasks": [
+      {
+        "id": "GEN-ACC-001-1",
+        "title": "Review vendors",
+        "status": "Created"
+      },
+      {
+        "id": "GEN-ACC-001-2",
+        "title": "Get budget approval",
+        "status": "Created"
+      }
+    ]
+  },
+  {
+    "id": "GEN-MISC-002",
+    "title": "General Task 2",
+    "category": "Misc",
+    "status": "Completed",
+    "stage": "Successfully completed",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-003",
+    "title": "General Task 3",
+    "category": "Misc",
+    "status": "Created",
+    "stage": "Not started yet",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-004",
+    "title": "General Task 4",
+    "category": "Misc",
+    "status": "In Progress",
+    "stage": "In progress",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-005",
+    "title": "General Task 5",
+    "category": "Misc",
+    "status": "Paused",
+    "stage": "Temporarily paused",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-006",
+    "title": "General Task 6",
+    "category": "Misc",
+    "status": "Completed",
+    "stage": "Successfully completed",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-007",
+    "title": "General Task 7",
+    "category": "Misc",
+    "status": "Created",
+    "stage": "Not started yet",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-008",
+    "title": "General Task 8",
+    "category": "Misc",
+    "status": "In Progress",
+    "stage": "In progress",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-009",
+    "title": "General Task 9",
+    "category": "Misc",
+    "status": "Paused",
+    "stage": "Temporarily paused",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-010",
+    "title": "General Task 10",
+    "category": "Misc",
+    "status": "Completed",
+    "stage": "Successfully completed",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-011",
+    "title": "General Task 11",
+    "category": "Misc",
+    "status": "Created",
+    "stage": "Not started yet",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-012",
+    "title": "General Task 12",
+    "category": "Misc",
+    "status": "In Progress",
+    "stage": "In progress",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-013",
+    "title": "General Task 13",
+    "category": "Misc",
+    "status": "Paused",
+    "stage": "Temporarily paused",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-014",
+    "title": "General Task 14",
+    "category": "Misc",
+    "status": "Completed",
+    "stage": "Successfully completed",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-015",
+    "title": "General Task 15",
+    "category": "Misc",
+    "status": "Created",
+    "stage": "Not started yet",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-016",
+    "title": "General Task 16",
+    "category": "Misc",
+    "status": "In Progress",
+    "stage": "In progress",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-017",
+    "title": "General Task 17",
+    "category": "Misc",
+    "status": "Paused",
+    "stage": "Temporarily paused",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-018",
+    "title": "General Task 18",
+    "category": "Misc",
+    "status": "Completed",
+    "stage": "Successfully completed",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-019",
+    "title": "General Task 19",
+    "category": "Misc",
+    "status": "Created",
+    "stage": "Not started yet",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-020",
+    "title": "General Task 20",
+    "category": "Misc",
+    "status": "In Progress",
+    "stage": "In progress",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-021",
+    "title": "General Task 21",
+    "category": "Misc",
+    "status": "Paused",
+    "stage": "Temporarily paused",
+    "subtasks": []
+  },
+  {
+    "id": "GEN-MISC-022",
+    "title": "General Task 22",
+    "category": "Misc",
+    "status": "Completed",
+    "stage": "Successfully completed",
+    "subtasks": []
+  }
+]

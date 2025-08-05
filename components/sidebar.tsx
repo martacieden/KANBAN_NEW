@@ -10,7 +10,12 @@ const menu = [
   { icon: <MoreHorizontal size={18} />, label: "More" },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  activeMenu?: string;
+  onMenuClick?: (menu: string) => void;
+}
+
+export default function Sidebar({ activeMenu = 'Tasks', onMenuClick }: SidebarProps) {
   return (
     <aside className="flex flex-col h-screen w-[72px] bg-white border-r border-[#e8e8ec] items-center pt-4 pb-2">
       {/* Logo */}
@@ -25,8 +30,9 @@ export default function Sidebar() {
         {menu.map((item, i) => (
           <button
             key={item.label}
+            onClick={() => onMenuClick?.(item.label)}
             className={`flex flex-col items-center w-full py-1 gap-0.5 transition
-              ${item.active ? "bg-blue-50 text-blue-600 font-semibold" : "text-gray-500 hover:bg-gray-100"}
+              ${item.label === activeMenu ? "bg-blue-50 text-blue-600 font-semibold" : "text-gray-500 hover:bg-gray-100"}
               ${i === 3 ? "rounded-xl" : ""}
             `}
           >

@@ -1,0 +1,69 @@
+{
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Parent Task: Develop Donor Strategy",
+      "category": "Philanthropy",
+      "status": "pause_it",
+      "stage": "paused",
+      "hasSubtasks": true,
+      "subtasks": [
+        {
+          "id": "1513aa47-a09c-437f-9a3e-3367a32ccdea",
+          "title": "Subtask: Draft Initial Donor List",
+          "status": "in_progress",
+          "stage": "active",
+          "parentId": "1",
+          "category": "Philanthropy",
+          "visibleUnderParent": true
+        }
+      ],
+      "createdAt": "2025-08-05T16:15:19.119698",
+      "updatedAt": "2025-08-05T16:15:19.119715"
+    }
+  ],
+  "meta": {
+    "stages": [
+      "draft",
+      "active",
+      "paused",
+      "done",
+      "rejected"
+    ],
+    "statusMap": {
+      "philanthropy": {
+        "draft": [
+          "idea",
+          "planned"
+        ],
+        "active": [
+          "in_progress",
+          "pitching",
+          "reviewing"
+        ],
+        "paused": [
+          "pause_it"
+        ],
+        "done": [
+          "funded",
+          "delivered"
+        ],
+        "rejected": [
+          "terminated"
+        ]
+      }
+    },
+    "rules": {
+      "pause_it": [
+        "in_progress"
+      ],
+      "in_progress": [
+        "pause_it",
+        "done",
+        "rejected"
+      ],
+      "done": [],
+      "rejected": []
+    }
+  }
+}

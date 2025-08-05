@@ -5,12 +5,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Settings, X, Search, ChevronLeft, ChevronUp, Clock, ChevronDown as ChevronDownIcon, Layers, Paperclip, MessageCircle, MoreHorizontal, Flag, Expand, Minimize2, GripVertical } from "lucide-react";
+import { ChevronDown, ChevronRight, Settings, X, Search, ChevronLeft, ChevronUp, Clock, ChevronDown as ChevronDownIcon, Layers, Paperclip, MessageCircle, MoreHorizontal, Flag, Expand, Minimize2, GripVertical, Grid3X3 } from "lucide-react";
 import { Paperclip as PaperclipIcon, MessageCircle as MessageCircleIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import TaskPreview from "./TaskPreview";
+import StatusSelectionPopup from "./StatusSelectionPopup";
+import TaskActionButtons from "./TaskActionButtons";
 // smart-drop-menu: removed SmartDropMenu import
 import React from "react";
 import { FixedSizeList as List } from 'react-window';
@@ -30,28 +34,28 @@ const STATES = [
   { 
     id: "active", 
     title: "Active", 
-    color: "bg-blue-50 border-blue-200",
+    color: "bg-gray-50 border-gray-200",
     icon: "🔄",
     description: "In progress"
   },
   { 
     id: "paused", 
     title: "Paused", 
-    color: "bg-yellow-50 border-yellow-200",
+    color: "bg-gray-50 border-gray-200",
     icon: "⏸️",
     description: "Temporarily paused"
   },
   { 
     id: "completed", 
     title: "Completed", 
-    color: "bg-green-50 border-green-200",
+    color: "bg-gray-50 border-gray-200",
     icon: "✅",
     description: "Successfully completed"
   },
   { 
     id: "terminated", 
     title: "Terminated", 
-    color: "bg-red-50 border-red-200",
+    color: "bg-gray-50 border-gray-200",
     icon: "❌",
     description: "Negatively completed"
   },
@@ -93,28 +97,26 @@ const STATUSES = {
 // New transition system for states
 const allowedTransitions: Record<string, string[]> = {
   // Created -> Active, Paused
-  "to_do": ["in_progress", "blocked", "on_hold"],
-  "draft": ["in_progress", "blocked", "on_hold"],
-  "backlog": ["in_progress", "blocked", "on_hold"],
-  "new": ["in_progress", "blocked", "on_hold"],
+  "to_do": ["in_progress", "blocked"],
+  "draft": ["in_progress", "blocked"],
+  "backlog": ["in_progress", "blocked"],
+  "new": ["in_progress", "blocked"],
   
   // Active -> Completed, Paused, Terminated
-  "in_progress": ["done", "approved", "validated", "blocked", "needs_work", "on_hold"],
-  "working": ["done", "approved", "validated", "blocked", "needs_work", "on_hold"],
-  "ongoing": ["done", "approved", "validated", "blocked", "needs_work", "on_hold"],
-  "doing": ["done", "approved", "validated", "blocked", "needs_work", "on_hold"],
-  "assigned": ["done", "approved", "validated", "blocked", "needs_work", "on_hold"],
+  "in_progress": ["done", "blocked", "rejected"],
+  "working": ["done", "blocked", "rejected"],
+  "ongoing": ["done", "blocked", "rejected"],
+  "doing": ["done", "blocked", "rejected"],
+  "assigned": ["done", "blocked", "rejected"],
   
   // Paused -> Active, Created, Terminated
-  "blocked": ["in_progress", "to_do", "rejected", "canceled"],
-  "needs_input": ["in_progress", "to_do", "rejected", "canceled"],
-  "needs_work": ["in_progress", "to_do", "rejected", "canceled"],
-  "on_hold": ["in_progress", "to_do", "rejected", "canceled"],
+  "blocked": ["in_progress", "to_do", "rejected"],
+  "needs_input": ["in_progress", "to_do", "rejected"],
+  "needs_work": ["in_progress", "to_do", "rejected"],
+  "on_hold": ["in_progress", "to_do", "rejected"],
   
   // Completed -> Active (for review/fixes)
-  "done": ["in_progress", "approved", "validated"],
-  "approved": ["in_progress", "done", "validated"],
-  "validated": ["in_progress", "done", "approved"],
+  "done": ["in_progress", "blocked"],
   
   // Terminated -> Active (for restoration)
   "rejected": ["in_progress", "to_do"],
@@ -122,439 +124,247 @@ const allowedTransitions: Record<string, string[]> = {
   "closed": ["in_progress", "to_do"],
 };
 
-const isValidTransition = (fromStatus: string, toStatus: string): boolean => {
-  // Allow dropping in the same status
-  if (fromStatus === toStatus) return true;
-  
-  // Check if the transition is allowed
-  const allowedTargets = allowedTransitions[fromStatus];
-  if (!allowedTargets) {
-    return false;
+// Function to get status group
+const getStatusGroup = (statusId: string): string => {
+  // Use stage mapping from updated mock tasks data
+  for (const [group, statuses] of Object.entries(updatedMockTasks.stage_mapping)) {
+    if ((statuses as string[]).includes(statusId)) {
+      return group.toUpperCase();
+    }
   }
-  
-  return allowedTargets.includes(toStatus);
+  return 'CREATED'; // Default fallback
 };
 
-const originalTasks = [
-  {
-    id: "1",
-    taskId: "FCLT-771",
-    title: "Update Calls, Distributions",
-    priority: "Emergency",
-    category: "Budget",
-    assignee: { name: "Marley Bergson", initials: "MB", department: "Finance" },
-    teamMembers: [
-      { name: "Marley Bergson", initials: "MB", avatarUrl: "https://randomuser.me/api/portraits/women/1.jpg" },
-      { name: "Sarah Chen", initials: "SC", avatarUrl: "https://randomuser.me/api/portraits/women/2.jpg" },
-      { name: "David Kim", initials: "DK", avatarUrl: "https://randomuser.me/api/portraits/men/3.jpg" },
-    ],
-    subtasks: [
-      { id: "1-1", taskId: "FCLT-771-1", title: "Review call schedule", status: "to_do", assignee: { name: "Marley Bergson", initials: "MB", department: "Finance" }, dueDate: "2024-11-12" },
-      { id: "1-2", taskId: "FCLT-771-2", title: "Confirm distribution amounts", status: "to_do", assignee: { name: "Marley Bergson", initials: "MB", department: "Finance" }, dueDate: "2024-11-12" },
-    ],
-    tags: ["finance", "urgent"],
-    dueDate: "2024-11-12",
-    progress: 80,
-    department: "Finance",
-    type: "Task",
-    clientInfo: "Acme Inc.",
-    description: "Update calls and distributions for Q4. Review quarterly performance and adjust distribution schedules accordingly.",
-    status: "to_do",
-    attachmentCount: 5,
-    commentCount: 12,
-    lastStatusChange: "2024-11-01T10:00:00Z",
-  },
-  {
-    id: "2",
-    taskId: "INVST-344",
-    title: "Renew insurance on Sand Lane",
-    priority: "Low",
-    category: "Investment",
-    assignee: { name: "Justin's team", initials: "JT", department: "Legal" },
-    teamMembers: [
-      { name: "Justin Miller", initials: "JM", avatarUrl: "https://randomuser.me/api/portraits/men/4.jpg" },
-      { name: "Emily Rodriguez", initials: "ER", avatarUrl: "https://randomuser.me/api/portraits/women/5.jpg" },
-    ],
-    subtasks: [
-      { id: "2-1", taskId: "INVST-344-1", title: "Collect insurance quotes", status: "to_do", assignee: { name: "Justin's team", initials: "JT", department: "Legal" }, dueDate: "2024-11-12" },
-      { id: "2-2", taskId: "INVST-344-2", title: "Review policy terms", status: "to_do", assignee: { name: "Justin's team", initials: "JT", department: "Legal" }, dueDate: "2024-11-12" },
-    ],
-    tags: ["insurance", "property"],
-    dueDate: "2024-11-12",
-    progress: 100,
-    department: "Legal",
-    type: "Task",
-    clientInfo: "Global Ventures LLC",
-    description: "Renew property insurance for Sand Lane property. Compare quotes from multiple providers and ensure adequate coverage. This is a longer description to demonstrate how the text will be clamped to a maximum of three lines in the card. Any extra text will be hidden and replaced with an ellipsis. We need to evaluate different insurance companies, their coverage options, deductibles, and premium costs. The property is located in a high-risk area, so we need comprehensive coverage including flood, fire, and liability insurance. Additionally, we should consider umbrella policies for extra protection.",
-    status: "to_do",
-    attachmentCount: 3,
-    commentCount: 7,
-    lastStatusChange: "2024-11-05T14:30:00Z",
-  },
-  {
-    id: "3",
-    taskId: "LFST-133",
-    title: "Define goals",
-    priority: "Low",
-    category: "Philanthropy",
-    assignee: { name: "Cheyenne Calzoni", initials: "CC", department: "Philanthropy" },
-    teamMembers: [
-      { name: "Cheyenne Calzoni", initials: "CC", avatarUrl: "https://randomuser.me/api/portraits/women/6.jpg" },
-    ],
-    subtasks: [],
-    tags: ["planning"],
-    dueDate: "2024-11-12",
-    progress: 40,
-    department: "Philanthropy",
-    type: "Task",
-    clientInfo: "Stellar Foundation",
-    description: "Define philanthropic goals for 2025. Focus on education and environmental initiatives.",
-    status: "to_do",
-    attachmentCount: 8,
-    commentCount: 15,
-  },
-  {
-    id: "4",
-    taskId: "INVST-83",
-    title: "Set up family office budget",
-    priority: "Normal",
-    category: "Investment",
-    assignee: { name: "Erin George", initials: "EG", department: "Investment" },
-    teamMembers: [
-      { name: "Erin George", initials: "EG", avatarUrl: "https://randomuser.me/api/portraits/women/7.jpg" },
-      { name: "Michael Thompson", initials: "MT", avatarUrl: "https://randomuser.me/api/portraits/men/8.jpg" },
-      { name: "Lisa Wang", initials: "LW", avatarUrl: "https://randomuser.me/api/portraits/women/9.jpg" },
-      { name: "James Wilson", initials: "JW", avatarUrl: "https://randomuser.me/api/portraits/men/10.jpg" },
-      { name: "Anna Martinez", initials: "AM", avatarUrl: "https://randomuser.me/api/portraits/women/11.jpg" },
-    ],
-    subtasks: [
-      { id: "4-1", taskId: "INVST-83-1", title: "Analyze current expenses", status: "in_progress", assignee: { name: "Erin George", initials: "EG", department: "Investment" }, dueDate: "2024-11-12" },
-      { id: "4-2", taskId: "INVST-83-2", title: "Set budget categories", status: "validated", assignee: { name: "Erin George", initials: "EG", department: "Investment" }, dueDate: "2024-11-15" },
-      { id: "4-3", taskId: "INVST-83-3", title: "Review with stakeholders", status: "to_do", assignee: { name: "Erin George", initials: "EG", department: "Investment" }, dueDate: "2024-11-20" },
-      { id: "4-4", taskId: "INVST-83-4", title: "Finalize budget document", status: "to_do", assignee: { name: "Erin George", initials: "EG", department: "Investment" }, dueDate: "2024-11-25" },
-      { id: "4-5", taskId: "INVST-83-5", title: "Present to board", status: "to_do", assignee: { name: "Erin George", initials: "EG", department: "Investment" }, dueDate: "2024-11-30" },
-    ],
-    tags: ["budget", "planning"],
-    dueDate: "2024-11-12",
-    progress: 60,
-    department: "Investment",
-    type: "Task",
-    clientInfo: "TechCorp Solutions",
-    description: "Set up comprehensive family office budget for next fiscal year with detailed expense tracking.",
-    status: "in_progress",
-    attachmentCount: 12,
-    commentCount: 23,
-    lastStatusChange: "2024-11-08T09:15:00Z",
-  },
-  {
-    id: "6",
-    taskId: "INVST-773",
-    title: "Screening and approving tenants",
-    priority: "High",
-    category: "Investment",
-    assignee: { name: "Gretchen's team", initials: "GT", department: "Legal" },
-    teamMembers: [
-      { name: "Gretchen Taylor", initials: "GT", avatarUrl: "https://randomuser.me/api/portraits/women/12.jpg" },
-      { name: "Robert Johnson", initials: "RJ", avatarUrl: "https://randomuser.me/api/portraits/men/13.jpg" },
-      { name: "Maria Garcia", initials: "MG", avatarUrl: "https://randomuser.me/api/portraits/women/14.jpg" },
-      { name: "Tom Anderson", initials: "TA", avatarUrl: "https://randomuser.me/api/portraits/men/15.jpg" },
-      { name: "Sophie Brown", initials: "SB", avatarUrl: "https://randomuser.me/api/portraits/women/16.jpg" },
-      { name: "Alex Davis", initials: "AD", avatarUrl: "https://randomuser.me/api/portraits/men/17.jpg" },
-      { name: "Nina Patel", initials: "NP", avatarUrl: "https://randomuser.me/api/portraits/women/18.jpg" },
-    ],
-    subtasks: [
-      { id: "6-1", taskId: "INVST-773-1", title: "Background checks", status: "in_progress", assignee: { name: "Gretchen's team", initials: "GT", department: "Legal" }, dueDate: "2024-11-15" },
-      { id: "6-2", taskId: "INVST-773-2", title: "Credit verification", status: "in_progress", assignee: { name: "Gretchen's team", initials: "GT", department: "Legal" }, dueDate: "2024-11-18" },
-      { id: "6-3", taskId: "INVST-773-3", title: "Reference calls", status: "to_do", assignee: { name: "Gretchen's team", initials: "GT", department: "Legal" }, dueDate: "2024-11-20" },
-    ],
-    tags: ["tenants", "screening"],
-    dueDate: "2024-11-12",
-    progress: 70,
-    department: "Legal",
-    type: "Task",
-    clientInfo: "Metropolitan Holdings",
-    description: "Complete tenant screening process for multiple properties including background and credit checks. This comprehensive process involves multiple steps and detailed verification procedures. We need to conduct thorough background checks, verify employment history, check credit scores, contact previous landlords, and ensure all applicants meet our strict criteria. The screening process must comply with fair housing laws and regulations. We also need to verify income requirements (typically 3x rent), check for any criminal history, and assess the overall reliability of potential tenants. Documentation must be properly maintained for legal compliance and future reference.",
-    status: "in_progress",
-    attachmentCount: 18,
-    commentCount: 31,
-  },
-  {
-    id: "7",
-    taskId: "HR-678",
-    title: "Home Security Enhancement",
-    priority: "Normal",
-    category: "HR",
-    assignee: { name: "Giana Levin", initials: "GL", department: "HR" },
-    teamMembers: [
-      { name: "Giana Levin", initials: "GL", avatarUrl: "https://randomuser.me/api/portraits/women/19.jpg" },
-      { name: "Kevin O'Connor", initials: "KO", avatarUrl: "https://randomuser.me/api/portraits/men/20.jpg" },
-      { name: "Diana Foster", initials: "DF", avatarUrl: "https://randomuser.me/api/portraits/women/21.jpg" },
-      { name: "Ryan Clarke", initials: "RC", avatarUrl: "https://randomuser.me/api/portraits/men/22.jpg" },
-    ],
-    subtasks: [],
-    tags: ["security"],
-    dueDate: "2024-11-12",
-    progress: 50,
-    department: "HR",
-    type: "Task",
-    clientInfo: "Acme Inc.",
-    description: "Upgrade home security systems including cameras, alarms, and access control.",
-    status: "in_progress",
-    attachmentCount: 2,
-    commentCount: 4,
-  },
-  {
-    id: "8",
-    taskId: "RLST-234",
-    title: "Challenger 350 Aircraft Purchase",
-    priority: "Low",
-    category: "Legal",
-    assignee: { name: "Aviation Team", initials: "AT", department: "Legal" },
-    teamMembers: [
-      { name: "Captain Jake Morrison", initials: "JM", avatarUrl: "https://randomuser.me/api/portraits/men/23.jpg" },
-      { name: "Elena Vasquez", initials: "EV", avatarUrl: "https://randomuser.me/api/portraits/women/24.jpg" },
-      { name: "Marcus Webb", initials: "MW", avatarUrl: "https://randomuser.me/api/portraits/men/25.jpg" },
-      { name: "Samantha Lee", initials: "SL", avatarUrl: "https://randomuser.me/api/portraits/women/26.jpg" },
-      { name: "Oliver Grant", initials: "OG", avatarUrl: "https://randomuser.me/api/portraits/men/27.jpg" },
-      { name: "Zoe Carter", initials: "ZC", avatarUrl: "https://randomuser.me/api/portraits/women/28.jpg" },
-    ],
-    subtasks: [
-      { id: "8-1", taskId: "RLST-234-1", title: "Aircraft inspection", status: "needs_work", assignee: { name: "Aviation Team", initials: "AT", department: "Legal" }, dueDate: "2024-11-25" },
-      { id: "8-2", taskId: "RLST-234-2", title: "Insurance setup", status: "to_do", assignee: { name: "Aviation Team", initials: "AT", department: "Legal" }, dueDate: "2024-12-01" },
-    ],
-    tags: ["aircraft", "purchase"],
-    dueDate: "2024-11-12",
-    progress: 30,
-    department: "Legal",
-    type: "Task",
-    clientInfo: "Global Ventures LLC",
-    description: "Complete purchase of Challenger 350 aircraft including inspection, documentation, and registration.",
-    status: "needs_work",
-    attachmentCount: 25,
-    commentCount: 8,
-  },
-  {
-    id: "9",
-    taskId: "HR-543-1",
-    title: "Upgrade IT Infrastructure",
-    priority: "High",
-    category: "HR",
-    assignee: { name: "Marley Bergson", initials: "MB", department: "HR" },
-    teamMembers: [
-      { name: "Marley Bergson", initials: "MB", avatarUrl: "https://randomuser.me/api/portraits/women/29.jpg" },
-      { name: "Tech Lead Sam", initials: "TS", avatarUrl: "https://randomuser.me/api/portraits/men/30.jpg" },
-    ],
-    subtasks: [],
-    tags: ["IT", "upgrade"],
-    dueDate: "2024-11-12",
-    progress: 60,
-    department: "HR",
-    type: "Task",
-    clientInfo: "Stellar Foundation",
-    description: "Comprehensive IT infrastructure upgrade including servers, networking, and security systems.",
-    status: "needs_work",
-    attachmentCount: 7,
-    commentCount: 19,
-  },
-  {
-    id: "10",
-    taskId: "HR-543-2",
-    title: "Annual Employee Training Program",
-    priority: "Emergency",
-    category: "HR",
-    assignee: { name: "James Saris", initials: "JS", department: "HR" },
-    teamMembers: [
-      { name: "James Saris", initials: "JS", avatarUrl: "https://randomuser.me/api/portraits/men/31.jpg" },
-      { name: "Training Coord Amy", initials: "TA", avatarUrl: "https://randomuser.me/api/portraits/women/32.jpg" },
-      { name: "HR Specialist Ben", initials: "HB", avatarUrl: "https://randomuser.me/api/portraits/men/33.jpg" },
-      { name: "Learning Expert Chloe", initials: "LC", avatarUrl: "https://randomuser.me/api/portraits/women/34.jpg" },
-      { name: "Development Lead Dan", initials: "DD", avatarUrl: "https://randomuser.me/api/portraits/men/35.jpg" },
-      { name: "Program Manager Eve", initials: "PE", avatarUrl: "https://randomuser.me/api/portraits/women/36.jpg" },
-      { name: "Content Creator Felix", initials: "CF", avatarUrl: "https://randomuser.me/api/portraits/men/37.jpg" },
-      { name: "Quality Lead Grace", initials: "QG", avatarUrl: "https://randomuser.me/api/portraits/women/38.jpg" },
-    ],
-    subtasks: [
-      { id: "10-1", taskId: "HR-543-2-1", title: "Design curriculum", status: "needs_work", assignee: { name: "James Saris", initials: "JS", department: "HR" }, dueDate: "2024-11-20" },
-      { id: "10-2", taskId: "HR-543-2-2", title: "Book venues", status: "to_do", assignee: { name: "James Saris", initials: "JS", department: "HR" }, dueDate: "2024-11-25" },
-      { id: "10-3", taskId: "HR-543-2-3", title: "Invite speakers", status: "to_do", assignee: { name: "James Saris", initials: "JS", department: "HR" }, dueDate: "2024-11-30" },
-    ],
-    tags: ["training", "employee"],
-    dueDate: "2024-11-12",
-    progress: 20,
-    department: "HR",
-    type: "Task",
-    clientInfo: "TechCorp Solutions",
-    description: "Organize comprehensive annual employee training program covering compliance, skills development, and team building. This extensive program will include multiple modules designed to enhance employee capabilities and ensure regulatory compliance. The training will cover topics such as workplace safety, diversity and inclusion, cybersecurity awareness, professional development, leadership skills, and industry-specific regulations. We need to coordinate with external trainers, book appropriate venues, prepare training materials, and ensure all employees can attend their required sessions. The program should be engaging, interactive, and measurable with clear learning outcomes and assessment criteria.",
-    status: "needs_work",
-    attachmentCount: 14,
-    commentCount: 27,
-  },
-  {
-    id: "11",
-    taskId: "FIN-892",
-    title: "Quarterly Tax Preparation",
-    priority: "High",
-    category: "Finance",
-    assignee: { name: "Sarah Mitchell", initials: "SM", department: "Finance" },
-    teamMembers: [
-      { name: "Sarah Mitchell", initials: "SM", avatarUrl: "https://randomuser.me/api/portraits/women/39.jpg" },
-      { name: "Tax Expert Carlos", initials: "TC", avatarUrl: "https://randomuser.me/api/portraits/men/40.jpg" },
-      { name: "Accountant Helen", initials: "AH", avatarUrl: "https://randomuser.me/api/portraits/women/41.jpg" },
-    ],
-    subtasks: [
-      { id: "11-1", taskId: "FIN-892-1", title: "Gather financial documents", status: "validated", assignee: { name: "Sarah Mitchell", initials: "SM", department: "Finance" }, dueDate: "2024-11-18" },
-      { id: "11-2", taskId: "FIN-892-2", title: "Review deductions", status: "validated", assignee: { name: "Sarah Mitchell", initials: "SM", department: "Finance" }, dueDate: "2024-11-22" },
-    ],
-    tags: ["tax", "quarterly"],
-    dueDate: "2024-11-28",
-    progress: 85,
-    department: "Finance",
-    type: "Task",
-    clientInfo: "Metropolitan Holdings",
-    description: "Prepare and file quarterly tax returns with detailed documentation and compliance review.",
-    status: "validated",
-    attachmentCount: 22,
-    commentCount: 16,
-  },
-  {
-    id: "12",
-    taskId: "LEG-445",
-    title: "Contract Review and Approval",
-    priority: "Normal",
-    category: "Legal",
-    assignee: { name: "Michael Chen", initials: "MC", department: "Legal" },
-    teamMembers: [
-      { name: "Michael Chen", initials: "MC", avatarUrl: "https://randomuser.me/api/portraits/men/42.jpg" },
-    ],
-    subtasks: [],
-    tags: ["contract", "review"],
-    dueDate: "2024-11-25",
-    progress: 95,
-    department: "Legal",
-    type: "Task",
-    clientInfo: "Acme Inc.",
-    description: "Review vendor contracts for compliance and negotiate better terms where possible.",
-    status: "validated",
-    attachmentCount: 6,
-    commentCount: 9,
-  },
-  {
-    id: "13",
-    taskId: "INV-678",
-    title: "Portfolio Rebalancing Q4",
-    priority: "Emergency",
-    category: "Investment",
-    assignee: { name: "Investment Committee", initials: "IC", department: "Investment" },
-    teamMembers: [
-      { name: "Portfolio Manager Ivan", initials: "PI", avatarUrl: "https://randomuser.me/api/portraits/men/43.jpg" },
-      { name: "Analyst Julia", initials: "AJ", avatarUrl: "https://randomuser.me/api/portraits/women/44.jpg" },
-      { name: "Risk Manager Kyle", initials: "RK", avatarUrl: "https://randomuser.me/api/portraits/men/45.jpg" },
-      { name: "Strategist Luna", initials: "SL", avatarUrl: "https://randomuser.me/api/portraits/women/46.jpg" },
-      { name: "Quant Expert Max", initials: "QM", avatarUrl: "https://randomuser.me/api/portraits/men/47.jpg" },
-      { name: "Research Lead Nora", initials: "RN", avatarUrl: "https://randomuser.me/api/portraits/women/48.jpg" },
-      { name: "Senior Advisor Oscar", initials: "SO", avatarUrl: "https://randomuser.me/api/portraits/men/49.jpg" },
-      { name: "Data Scientist Petra", initials: "DP", avatarUrl: "https://randomuser.me/api/portraits/women/50.jpg" },
-      { name: "Market Expert Quinn", initials: "MQ", avatarUrl: "https://randomuser.me/api/portraits/men/51.jpg" },
-    ],
-    subtasks: [
-      { id: "13-1", taskId: "INV-678-1", title: "Market analysis", status: "to_do", assignee: { name: "Investment Committee", initials: "IC", department: "Investment" }, dueDate: "2024-11-30" },
-    ],
-    tags: ["portfolio", "rebalancing"],
-    dueDate: "2024-12-05",
-    progress: 90,
-    department: "Investment",
-    type: "Task",
-    clientInfo: "Global Ventures LLC",
-    description: "Complete portfolio rebalancing based on Q4 market conditions and risk assessment.",
-    status: "to_do",
-    attachmentCount: 35,
-    commentCount: 42,
-  },
-  {
-    id: "14",
-    taskId: "HR-789",
-    title: "Performance Review Cycle",
-    priority: "Normal",
-    category: "HR",
-    assignee: { name: "Lisa Rodriguez", initials: "LR", department: "HR" },
-    teamMembers: [
-      { name: "Lisa Rodriguez", initials: "LR", avatarUrl: "https://randomuser.me/api/portraits/women/52.jpg" },
-      { name: "HR Partner Rachel", initials: "HR", avatarUrl: "https://randomuser.me/api/portraits/women/53.jpg" },
-      { name: "Manager Steve", initials: "MS", avatarUrl: "https://randomuser.me/api/portraits/men/54.jpg" },
-    ],
-    subtasks: [],
-    tags: ["performance", "review"],
-    dueDate: "2024-12-01",
-    progress: 100,
-    department: "HR",
-    type: "Task",
-    clientInfo: "Stellar Foundation",
-    description: "Conduct annual performance reviews for all department heads and key personnel.",
-    status: "to_do",
-    attachmentCount: 11,
-    commentCount: 33,
-  },
-  {
-    id: "15",
-    taskId: "PROP-123",
-    title: "Real Estate Due Diligence",
-    priority: "Low",
-    category: "Investment",
-    assignee: { name: "Property Team", initials: "PT", department: "Investment" },
-    teamMembers: [
-      { name: "Property Lead Tom", initials: "PT", avatarUrl: "https://randomuser.me/api/portraits/men/55.jpg" },
-      { name: "Inspector Uma", initials: "IU", avatarUrl: "https://randomuser.me/api/portraits/women/56.jpg" },
-      { name: "Appraiser Victor", initials: "AV", avatarUrl: "https://randomuser.me/api/portraits/men/57.jpg" },
-      { name: "Legal Advisor Wendy", initials: "LW", avatarUrl: "https://randomuser.me/api/portraits/women/58.jpg" },
-      { name: "Finance Expert Xavier", initials: "FX", avatarUrl: "https://randomuser.me/api/portraits/men/59.jpg" },
-    ],
-    subtasks: [
-      { id: "15-1", taskId: "PROP-123-1", title: "Property inspection", status: "done", assignee: { name: "Property Team", initials: "PT", department: "Investment" }, dueDate: "2024-11-10" },
-      { id: "15-2", taskId: "PROP-123-2", title: "Market valuation", status: "done", assignee: { name: "Property Team", initials: "PT", department: "Investment" }, dueDate: "2024-11-12" },
-    ],
-    tags: ["real-estate", "due-diligence"],
-    dueDate: "2024-11-15",
-    progress: 100,
-    department: "Investment",
-    type: "Task",
-    clientInfo: "TechCorp Solutions",
-    description: "Complete due diligence for commercial real estate acquisition including environmental and structural assessments.",
-    status: "done",
-    attachmentCount: 28,
-    commentCount: 18,
-  },
-  {
-    id: "16",
-    taskId: "COMP-456",
-    title: "Compliance Audit Preparation",
-    priority: "High",
-    category: "Legal",
-    assignee: { name: "Compliance Team", initials: "CT", department: "Legal" },
-    teamMembers: [
-      { name: "Compliance Lead Yara", initials: "CY", avatarUrl: "https://randomuser.me/api/portraits/women/60.jpg" },
-      { name: "Auditor Zack", initials: "AZ", avatarUrl: "https://randomuser.me/api/portraits/men/61.jpg" },
-      { name: "Legal Counsel Alice", initials: "LA", avatarUrl: "https://randomuser.me/api/portraits/women/62.jpg" },
-      { name: "Risk Officer Bob", initials: "RB", avatarUrl: "https://randomuser.me/api/portraits/men/63.jpg" },
-      { name: "Documentation Expert Claire", initials: "DC", avatarUrl: "https://randomuser.me/api/portraits/women/64.jpg" },
-      { name: "Process Manager Derek", initials: "PD", avatarUrl: "https://randomuser.me/api/portraits/men/65.jpg" },
-      { name: "Quality Assurance Emma", initials: "QE", avatarUrl: "https://randomuser.me/api/portraits/women/66.jpg" },
-      { name: "Regulatory Expert Frank", initials: "RF", avatarUrl: "https://randomuser.me/api/portraits/men/67.jpg" },
-      { name: "Analyst Georgia", initials: "AG", avatarUrl: "https://randomuser.me/api/portraits/women/68.jpg" },
-      { name: "Coordinator Henry", initials: "CH", avatarUrl: "https://randomuser.me/api/portraits/men/69.jpg" },
-    ],
-    subtasks: [],
-    tags: ["compliance", "audit"],
-    dueDate: "2024-11-08",
-    progress: 100,
-    department: "Legal",
-    type: "Task",
-    clientInfo: "Metropolitan Holdings",
-    description: "Prepare all documentation and processes for annual compliance audit by regulatory authorities. This critical project requires meticulous preparation and coordination across multiple departments. We need to gather all required documentation, ensure all processes are properly documented and compliant with current regulations, prepare staff for interviews with auditors, and create comprehensive reports demonstrating our adherence to industry standards. The audit preparation involves reviewing internal controls, updating policies and procedures, conducting mock audits, and addressing any potential compliance gaps. All documentation must be organized, easily accessible, and demonstrate continuous improvement in our compliance framework.",
-    status: "done",
-    attachmentCount: 45,
-    commentCount: 52,
-  },
-];
+// Function to get group abbreviation (first letter uppercase, rest lowercase)
+const getGroupAbbreviation = (groupId: string): string => {
+  if (groupId.length === 0) return '';
+  return groupId.charAt(0).toUpperCase() + groupId.slice(1).toLowerCase();
+};
+
+// Centralized workflow configuration - Updated to match actual status values in data
+const WORKFLOW_CONFIG = {
+  // Core status transitions using actual status values from data
+  "draft": ["to_do", "in_progress", "rejected"],
+  "to_do": ["in_progress", "waiting", "rejected"],
+  "in_progress": ["in_review", "done", "blocked", "waiting", "rejected"],
+  "in_review": ["approved", "done", "rejected", "needs_input"],
+  "approved": ["done", "rejected"],
+  "done": ["approved", "rejected"], // Can be reopened if needed
+  "waiting": ["in_progress", "to_do", "rejected"],
+  "blocked": ["in_progress", "to_do", "rejected"],
+  "needs_input": ["in_progress", "to_do", "rejected"],
+  "scheduled": ["in_progress", "to_do", "rejected"],
+  "rejected": ["to_do", "in_progress"], // Can be reopened
+  "canceled": ["to_do", "in_progress"], // Can be reopened
+  "terminated": ["to_do", "in_progress"], // Can be reopened
+  
+  // Legacy mappings for backward compatibility
+  "archived": [],
+  "paused": ["in_progress", "done"],
+  "active": ["paused", "done", "rejected"],
+  "created": ["active", "paused", "rejected"]
+};
+
+// Status rules from status_rules (1).json with additional statuses from mock data
+const STATUS_RULES: Record<string, string[]> = WORKFLOW_CONFIG;
+
+const isValidTransition = (fromStatus: string, toStatus: string, parentStatus?: string): boolean => {
+  console.log(`isValidTransition called: ${fromStatus} -> ${toStatus} (parent: ${parentStatus})`);
+  
+  // Allow dropping in the same status
+  if (fromStatus === toStatus) {
+    console.log('Same status, transition allowed');
+    return true;
+  }
+  
+  // Business logic: If parent task is rejected, subtask cannot move to certain statuses
+  if (parentStatus === "rejected") {
+    const blockedTransitions = ["to_do", "in_progress", "in_review", "approved"];
+    if (blockedTransitions.includes(toStatus)) {
+      console.log('Transition blocked: parent is rejected');
+      return false;
+    }
+  }
+  
+  // Business logic: If parent task is done, subtask can only move to archived
+  if (parentStatus === "done") {
+    if (toStatus !== "archived") {
+      console.log('Transition blocked: parent is done, can only move to archived');
+      return false;
+    }
+  }
+  
+  // Check if the transition is allowed according to status rules
+  const allowedTransitions = STATUS_RULES[fromStatus];
+  if (allowedTransitions && allowedTransitions.includes(toStatus)) {
+    console.log('Transition allowed by status rules');
+    return true;
+  }
+  
+  // Fallback to group-based transitions for backward compatibility
+  const fromGroup = getStatusGroup(fromStatus);
+  const toGroup = getStatusGroup(toStatus);
+  
+  console.log(`Group-based check: ${fromGroup} -> ${toGroup}`);
+  
+  // Define valid workflow transitions for group-based logic
+  const validGroupTransitions: Record<string, string[]> = {
+    'CREATED': ['ACTIVE', 'PAUSED', 'REJECTED'], // Can move to active, paused, or rejected
+    'ACTIVE': ['PAUSED', 'COMPLETED', 'REJECTED'], // Can move to paused, completed, or rejected
+    'PAUSED': ['CREATED', 'ACTIVE', 'REJECTED'], // Can move back to created, active, or rejected
+    'COMPLETED': ['REJECTED'], // Can only move to rejected
+    'REJECTED': ['CREATED', 'ACTIVE'] // Can move back to created or active
+  };
+  
+  const isValid = validGroupTransitions[fromGroup]?.includes(toGroup) || false;
+  console.log(`Group transition result: ${isValid}`);
+  
+  return isValid;
+};
+
+// Get all available transitions for a given status
+const getAvailableTransitions = (fromStatus: string): string[] => {
+  return STATUS_RULES[fromStatus] || [];
+};
+
+// Load status rules from JSON file (for future use)
+const loadStatusRules = async (): Promise<Record<string, string[]>> => {
+  try {
+    const response = await fetch('/status_rules (1).json');
+    const rules = await response.json();
+    return rules;
+  } catch (error) {
+    console.warn('Failed to load status rules from file, using default rules:', error);
+    return STATUS_RULES;
+  }
+};
+
+// Get workflow visualization data
+const getWorkflowVisualization = () => {
+  const nodes: Array<{ id: string; label: string; type: 'start' | 'process' | 'end' }> = [];
+  const edges: Array<{ from: string; to: string }> = [];
+  
+  Object.entries(STATUS_RULES).forEach(([status, transitions]) => {
+    // Add node
+    let type: 'start' | 'process' | 'end' = 'process';
+    if (transitions.length === 0) {
+      type = 'end';
+    } else if (['Idea', 'Planning', 'To Do'].includes(status)) {
+      type = 'start';
+    }
+    
+    nodes.push({ id: status, label: status, type });
+    
+    // Add edges
+    transitions.forEach(toStatus => {
+      edges.push({ from: status, to: toStatus });
+    });
+  });
+  
+  return { nodes, edges };
+};
+
+// Validate workflow rules for consistency
+const validateWorkflowRules = () => {
+  const issues: string[] = [];
+  
+  // Check for circular references
+  const visited = new Set<string>();
+  const recursionStack = new Set<string>();
+  
+  const hasCycle = (status: string): boolean => {
+    if (recursionStack.has(status)) {
+      issues.push(`Circular reference detected: ${status} -> ${status}`);
+      return true;
+    }
+    
+    if (visited.has(status)) {
+      return false;
+    }
+    
+    visited.add(status);
+    recursionStack.add(status);
+    
+    const transitions = STATUS_RULES[status] || [];
+    for (const nextStatus of transitions) {
+      if (hasCycle(nextStatus)) {
+        return true;
+      }
+    }
+    
+    recursionStack.delete(status);
+    return false;
+  };
+  
+  // Check each status for cycles
+  Object.keys(STATUS_RULES).forEach(status => {
+    if (!visited.has(status)) {
+      hasCycle(status);
+    }
+  });
+  
+  // Check for unreachable statuses
+  const reachable = new Set<string>();
+  Object.values(STATUS_RULES).flat().forEach(status => {
+    reachable.add(status);
+  });
+  
+  Object.keys(STATUS_RULES).forEach(status => {
+    if (!reachable.has(status) && STATUS_RULES[status].length > 0) {
+      issues.push(`Unreachable status: ${status}`);
+    }
+  });
+  
+  return issues;
+};
+
+// Export current status rules as JSON
+const exportStatusRules = () => {
+  return JSON.stringify(STATUS_RULES, null, 2);
+};
+
+// Import status rules from JSON string
+const importStatusRules = (jsonString: string) => {
+  try {
+    const rules = JSON.parse(jsonString);
+    // Validate the imported rules
+    if (typeof rules === 'object' && rules !== null) {
+      Object.entries(rules).forEach(([status, transitions]) => {
+        if (!Array.isArray(transitions)) {
+          throw new Error(`Invalid transitions for status ${status}: must be an array`);
+        }
+      });
+      return rules;
+    }
+    throw new Error('Invalid JSON structure');
+  } catch (error) {
+    console.error('Failed to import status rules:', error);
+    toast.error('Failed to import status rules. Please check the JSON format.');
+    return null;
+  }
+};
+
+// Get all subtasks for a specific parent task (to be used within component scope)
+const getSubtasksForParent = (parentTaskId: string, tasks: any[]) => {
+  const parentTask = tasks.find((task: any) => task.id === parentTaskId);
+  if (!parentTask || !parentTask.subtasks) return [];
+  
+  return parentTask.subtasks.map((subtask: any) => ({
+    ...subtask,
+    parentTask: {
+      id: parentTask.id,
+      title: parentTask.title,
+      taskId: parentTask.taskId,
+      category: parentTask.category
+    },
+    isSubtask: true
+  }));
+};
+
+// Import updated mock tasks data
+import updatedMockTasks from '../updated_mock_tasks.json';
+
+const originalTasks = updatedMockTasks.tasks;
 
 // Seeded random number generator for consistent results
 const seededRandom = (seed: number) => {
@@ -570,9 +380,9 @@ const generateAdditionalTasks = () => {
   const additionalTasks = [];
   const categories = ["Budget", "Philanthropy", "Investment", "Legal", "Travel", "Food", "HR", "Accounting"];
   const priorities = ["Emergency", "High", "Normal", "Low"];
-  const statuses = ["to_do", "in_progress", "blocked", "done", "rejected"];
+  const statuses = ["to_do", "in_progress", "blocked", "done", "rejected", "draft", "backlog", "new", "working", "ongoing", "doing", "assigned", "needs_input", "needs_work", "on_hold", "approved", "validated", "canceled", "closed"];
   const departments = ["Finance", "Legal", "Investment", "HR", "Operations"];
-  const organizations = ["Acme Inc.", "Global Ventures LLC", "Stellar Foundation", "TechCorp Solutions", "Metropolitan Holdings"];
+  const organizations = ["Acme Inc.", "Global Ventures LLC", "Stellar Foundation"];
   const assignees = [
     { name: "Erin George", initials: "EG", department: "Investment" },
     { name: "Marley Bergson", initials: "MB", department: "Finance" },
@@ -590,31 +400,162 @@ const generateAdditionalTasks = () => {
     { name: "Compliance Team", initials: "CT", department: "Legal" }
   ];
 
-  for (let i = 17; i <= 66; i++) {
+  // Default subtasks for each category
+  const defaultSubtasksByCategory: Record<string, string[]> = {
+    "Budget": [
+      "Analyze current expenses",
+      "Set budget categories", 
+      "Review with stakeholders",
+      "Finalize budget document",
+      "Present to board"
+    ],
+    "Philanthropy": [
+      "Research potential recipients",
+      "Evaluate impact metrics",
+      "Prepare donation proposal",
+      "Coordinate with partners",
+      "Track outcomes"
+    ],
+    "Investment": [
+      "Conduct market research",
+      "Analyze risk factors",
+      "Prepare investment memo",
+      "Review legal documents",
+      "Execute investment"
+    ],
+    "Legal": [
+      "Review contracts",
+      "Conduct due diligence",
+      "Prepare legal documents",
+      "Coordinate with counsel",
+      "Finalize agreements"
+    ],
+    "Travel": [
+      "Book accommodations",
+      "Arrange transportation",
+      "Prepare travel documents",
+      "Coordinate schedules",
+      "Submit expense reports"
+    ],
+    "Food": [
+      "Plan menu options",
+      "Source ingredients",
+      "Coordinate with vendors",
+      "Manage dietary restrictions",
+      "Track food costs"
+    ],
+    "HR": [
+      "Screen candidates",
+      "Conduct interviews",
+      "Check references",
+      "Prepare offer letters",
+      "Onboard new hires"
+    ],
+    "Accounting": [
+      "Review financial statements",
+      "Prepare tax documents",
+      "Reconcile accounts",
+      "Audit expenses",
+      "Generate reports"
+    ]
+  };
+
+  for (let i = 17; i <= 46; i++) {
     // Use a deterministic seed based on the task index
     const random = seededRandom(i * 12345);
     
-    const category = categories[Math.floor(random() * categories.length)];
-    const priority = priorities[Math.floor(random() * priorities.length)];
-    const status = statuses[Math.floor(random() * statuses.length)];
+    // Distribute categories more realistically
+    const categoryDistribution = [
+      // Budget (18%)
+      "Budget", "Budget", "Budget", "Budget", "Budget", "Budget", "Budget", "Budget", "Budget",
+      
+      // Philanthropy (12%)
+      "Philanthropy", "Philanthropy", "Philanthropy", "Philanthropy", "Philanthropy", "Philanthropy",
+      
+      // Investment (15%)
+      "Investment", "Investment", "Investment", "Investment", "Investment", "Investment", "Investment",
+      
+      // Legal (9%)
+      "Legal", "Legal", "Legal", "Legal", "Legal",
+      
+      // Travel (9%)
+      "Travel", "Travel", "Travel", "Travel", "Travel",
+      
+      // Food (12%)
+      "Food", "Food", "Food", "Food", "Food", "Food",
+      
+      // HR (12%)
+      "HR", "HR", "HR", "HR", "HR", "HR",
+      
+      // Accounting (15%)
+      "Accounting", "Accounting", "Accounting", "Accounting", "Accounting", "Accounting", "Accounting"
+    ];
+    
+    const category = categoryDistribution[Math.floor(random() * categoryDistribution.length)];
+    // Distribute priorities more realistically
+    const priorityDistribution = [
+      // Emergency (5%)
+      "Emergency", "Emergency", "Emergency",
+      
+      // High (25%)
+      "High", "High", "High", "High", "High", "High", "High", "High", "High", "High", "High", "High",
+      
+      // Normal (50%)
+      "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal",
+      "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal", "Normal",
+      "Normal", "Normal", "Normal", "Normal", "Normal",
+      
+      // Low (20%)
+      "Low", "Low", "Low", "Low", "Low", "Low", "Low", "Low", "Low", "Low"
+    ];
+    
+    const priority = priorityDistribution[Math.floor(random() * priorityDistribution.length)];
+    
+    // Distribute statuses more evenly across different states
+    const statusDistribution = [
+      // Created states (30%)
+      "draft", "backlog", "to_do", "new",
+      "draft", "backlog", "to_do", "new",
+      "draft", "backlog", "to_do", "new",
+      
+      // Active states (40%)
+      "in_progress", "working", "ongoing", "doing", "assigned",
+      "in_progress", "working", "ongoing", "doing", "assigned",
+      "in_progress", "working", "ongoing", "doing", "assigned",
+      "in_progress", "working", "ongoing", "doing", "assigned",
+      
+      // Paused states (20%)
+      "blocked", "needs_input", "needs_work", "on_hold",
+      "blocked", "needs_input", "needs_work", "on_hold",
+      
+      // Completed states (8%)
+      "done", "approved", "validated",
+      
+      // Terminated states (2%)
+      "rejected", "canceled", "closed"
+    ];
+    
+    const status = statusDistribution[Math.floor(random() * statusDistribution.length)];
     const department = departments[Math.floor(random() * departments.length)];
     const assignee = assignees[Math.floor(random() * assignees.length)];
-    const hasSubtasks = random() > 0.7;
-    const isOverdue = random() > 0.8;
-    const isStuck = random() > 0.9;
+    
+    // Always generate 3-5 subtasks for each task
+    const subtaskCount = Math.floor(random() * 3) + 3; // 3-5 subtasks
+    const defaultSubtasks = defaultSubtasksByCategory[category] || [
+      "Research and planning",
+      "Implementation",
+      "Review and testing",
+      "Documentation",
+      "Final approval"
+    ];
     
     // Use deterministic dates based on the seed
-    const dueDate = isOverdue 
-      ? new Date(Date.now() - random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      : new Date(Date.now() + random() * 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    
-    const lastStatusChange = isStuck
-      ? new Date(Date.now() - random() * 20 * 24 * 60 * 60 * 1000).toISOString()
-      : new Date(Date.now() - random() * 7 * 24 * 60 * 60 * 1000).toISOString();
+    const dueDate = new Date(Date.now() + random() * 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const lastStatusChange = new Date(Date.now() - random() * 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const task = {
-      id: i.toString(),
-      taskId: `${category.substring(0, 3).toUpperCase()}-${String(i).padStart(3, '0')}`,
+      id: `gen-${i}`,
+      taskId: `GEN-${category.substring(0, 3).toUpperCase()}-${String(i).padStart(3, '0')}`,
       title: `Task ${i}: ${category} Management - ${Math.floor(random() * 1000000).toString(36)}`,
       priority,
       category,
@@ -627,14 +568,14 @@ const generateAdditionalTasks = () => {
           avatarUrl: `https://randomuser.me/api/portraits/${random() > 0.5 ? 'men' : 'women'}/${70 + j}.jpg`
         }))
       ],
-      subtasks: hasSubtasks ? Array.from({ length: Math.floor(random() * 4) + 1 }, (_, j) => ({
-        id: `${i}-${j + 1}`,
-        taskId: `${category.substring(0, 3).toUpperCase()}-${String(i).padStart(3, '0')}-${j + 1}`,
-        title: `Subtask ${j + 1} for Task ${i}`,
-        status: statuses[Math.floor(random() * statuses.length)],
+      subtasks: Array.from({ length: subtaskCount }, (_, j) => ({
+        id: `gen-${i}-${j + 1}`,
+        taskId: `GEN-${category.substring(0, 3).toUpperCase()}-${String(i).padStart(3, '0')}-${j + 1}`,
+        title: defaultSubtasks[j] || `Subtask ${j + 1} for Task ${i}`,
+        status: "draft", // All subtasks start with draft status
         assignee,
-        dueDate
-      })) : [],
+        dueDate: new Date(Date.now() + (j + 1) * 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Each subtask has a different due date
+      })),
       tags: [category.toLowerCase(), priority.toLowerCase()],
       dueDate,
       progress: Math.floor(random() * 100),
@@ -657,31 +598,124 @@ const generateAdditionalTasks = () => {
 // Combine original tasks with generated ones
 const initialTasks = [
   ...originalTasks,
-  ...generateAdditionalTasks()
+  ...generateAdditionalTasks(),
+  // Add test task with subtasks in draft status for testing
+  {
+    id: "test-draft-task",
+    taskId: "TEST-001",
+    title: "Test Draft Task with Subtasks",
+    category: "Budget",
+    status: "draft",
+    stage: "Created",
+    priority: "High",
+    assignee: { name: "Test User", initials: "TU", department: "Test" },
+    teamMembers: [
+      { name: "Test User", initials: "TU", avatarUrl: "https://randomuser.me/api/portraits/men/1.jpg" }
+    ],
+    subtasks: [
+      {
+        id: "test-subtask-1",
+        taskId: "TEST-001-1",
+        title: "Test Subtask 1",
+        status: "draft",
+        category: "Budget",
+        assignee: { name: "Test User", initials: "TU", department: "Test" },
+        dueDate: "2024-12-15"
+      },
+      {
+        id: "test-subtask-2",
+        taskId: "TEST-001-2",
+        title: "Test Subtask 2",
+        status: "draft",
+        category: "Budget",
+        assignee: { name: "Test User", initials: "TU", department: "Test" },
+        dueDate: "2024-12-20"
+      }
+    ],
+    tags: ["test", "draft"],
+    dueDate: "2024-12-30",
+    progress: 0,
+    department: "Test",
+    type: "Task",
+    clientInfo: "Test Client",
+    description: "This is a test task with subtasks in draft status to test the subtask expansion functionality.",
+    attachmentCount: 0,
+    commentCount: 0,
+    lastStatusChange: "2024-11-15T10:00:00Z"
+  }
 ];
 
 export { initialTasks };
+
+// Function to get main statuses for categories
+const getMainStatuses = () => {
+  return [
+    // CREATED - Not started, draft, backlog
+    { id: "draft", title: "Draft", color: "bg-gray-100 text-gray-700", group: "CREATED" },
+    { id: "backlog", title: "Backlog", color: "bg-gray-100 text-gray-700", group: "CREATED" },
+    { id: "to_do", title: "To Do", color: "bg-gray-100 text-gray-700", group: "CREATED" },
+    { id: "new", title: "New", color: "bg-gray-100 text-gray-700", group: "CREATED" },
+    
+    // ACTIVE - In progress, working, under review
+    { id: "in_progress", title: "In Progress", color: "bg-blue-100 text-blue-700", group: "ACTIVE" },
+    { id: "working", title: "Working", color: "bg-blue-100 text-blue-700", group: "ACTIVE" },
+    { id: "ongoing", title: "Ongoing", color: "bg-blue-100 text-blue-700", group: "ACTIVE" },
+    { id: "doing", title: "Doing", color: "bg-blue-100 text-blue-700", group: "ACTIVE" },
+    { id: "assigned", title: "Assigned", color: "bg-blue-100 text-blue-700", group: "ACTIVE" },
+    
+    // PAUSED - Blocked, on hold, needs work
+    { id: "blocked", title: "Blocked", color: "bg-yellow-100 text-yellow-700", group: "PAUSED" },
+    { id: "needs_input", title: "Needs Input", color: "bg-yellow-100 text-yellow-700", group: "PAUSED" },
+    { id: "needs_work", title: "Needs Work", color: "bg-yellow-100 text-yellow-700", group: "PAUSED" },
+    { id: "on_hold", title: "On Hold", color: "bg-yellow-100 text-yellow-700", group: "PAUSED" },
+    
+    // COMPLETED - Done, validated, approved
+    { id: "done", title: "Done", color: "bg-green-100 text-green-700", group: "COMPLETED" },
+    { id: "approved", title: "Approved", color: "bg-green-100 text-green-700", group: "COMPLETED" },
+    { id: "validated", title: "Validated", color: "bg-green-100 text-green-700", group: "COMPLETED" },
+    
+    // REJECTED - Rejected, cancelled, failed
+    { id: "rejected", title: "Rejected", color: "bg-red-100 text-red-700", group: "REJECTED" },
+    { id: "canceled", title: "Canceled", color: "bg-red-100 text-red-700", group: "REJECTED" },
+    { id: "closed", title: "Closed", color: "bg-red-100 text-red-700", group: "REJECTED" },
+  ];
+};
 
 // Create color map for states
 const stateColorMap = Object.fromEntries(
   STATES.map((s) => [s.id, s.color])
 );
 
-// Create color map for statuses
-const statusColorMap = Object.fromEntries(
-  Object.entries(STATUSES).flatMap(([state, statuses]) =>
-    statuses.map(status => [status.id, status.color])
-  )
-);
+// Create color map for statuses - column backgrounds are light gray, badges keep their colors
+const statusColorMap = Object.fromEntries([
+  ...Object.entries(STATUSES).flatMap(([state, statuses]) =>
+    statuses.map(status => [status.id, "bg-gray-100 border-gray-200"]) // Light gray background for all columns
+  ),
+  // Add main statuses colors - column backgrounds are light gray
+  ...getMainStatuses().map(status => [status.id, "bg-gray-100 border-gray-200"]) // Light gray background for all columns
+]);
+
+// Create color map for status badges - preserves original colors for badges
+const statusBadgeColorMap = Object.fromEntries([
+  ...Object.entries(STATUSES).flatMap(([state, statuses]) =>
+    statuses.map(status => [status.id, status.color]) // Original colors for badges
+  ),
+  // Add main statuses colors for badges
+  ...getMainStatuses().map(status => [status.id, status.color]) // Original colors for badges
+]);
 
 // Function to get all statuses
 const getAllStatuses = () => {
-  return Object.entries(STATUSES).flatMap(([state, statuses]) => statuses);
+  const allStatuses = Object.entries(STATUSES).flatMap(([state, statuses]) => statuses);
+  console.log('getAllStatuses called, returning:', allStatuses.map(s => ({ id: s.id, title: s.title })));
+  return allStatuses;
 };
 
 // Function to find status by ID
 const findStatusById = (id: string) => {
-  return getAllStatuses().find(s => s.id === id);
+  const status = getAllStatuses().find(s => s.id === id);
+  console.log(`findStatusById("${id}") returned:`, status ? { id: status.id, title: status.title } : null);
+  return status;
 };
 
 // Function to find state by status
@@ -693,6 +727,28 @@ const findStateByStatus = (statusId: string) => {
   }
   return null;
 };
+
+// Categories that should show statuses instead of states
+const STATUS_BASED_CATEGORIES = ["Philanthropy", "Investment", "Legal", "Budget", "Food", "HR", "Accounting", "Travel"];
+
+// Function to check if category should show statuses
+const shouldShowStatuses = (category: string) => {
+  return STATUS_BASED_CATEGORIES.includes(category);
+};
+
+  // Function to get available statuses for a group
+  const getAvailableStatusesForGroup = (groupId: string): any[] => {
+    const allStatuses = getMainStatuses();
+    return allStatuses.filter(status => status.group === groupId);
+  };
+
+  // Function to get group name by status
+  const getGroupNameByStatus = (statusId: string): string => {
+    const status = getMainStatuses().find(s => s.id === statusId);
+    return status?.group || 'UNKNOWN';
+  };
+
+
 
 const CARD_FIELDS = [
   { key: "taskId", label: "Task ID", pinned: false },
@@ -715,23 +771,66 @@ function generateColorFromText(text: string): string {
     hash = hash & hash; // Convert to 32bit integer
   }
   
-  // Convert hash to color index
+  // Convert hash to color index - пастельні кольори
   const colors = [
-    'from-blue-400 via-blue-500 to-blue-600',
-    'from-purple-400 via-purple-500 to-purple-600', 
-    'from-pink-400 via-pink-500 to-pink-600',
-    'from-green-400 via-green-500 to-green-600',
-    'from-yellow-400 via-yellow-500 to-yellow-600',
-    'from-red-400 via-red-500 to-red-600',
-    'from-indigo-400 via-indigo-500 to-indigo-600',
-    'from-teal-400 via-teal-500 to-teal-600',
-    'from-orange-400 via-orange-500 to-orange-600',
-    'from-cyan-400 via-cyan-500 to-cyan-600'
+    'from-blue-200 via-blue-300 to-blue-400',
+    'from-purple-200 via-purple-300 to-purple-400', 
+    'from-pink-200 via-pink-300 to-pink-400',
+    'from-green-200 via-green-300 to-green-400',
+    'from-yellow-200 via-yellow-300 to-yellow-400',
+    'from-red-200 via-red-300 to-red-400',
+    'from-indigo-200 via-indigo-300 to-indigo-400',
+    'from-teal-200 via-teal-300 to-teal-400',
+    'from-orange-200 via-orange-300 to-orange-400',
+    'from-cyan-200 via-cyan-300 to-cyan-400',
+    'from-emerald-200 via-emerald-300 to-emerald-400',
+    'from-violet-200 via-violet-300 to-violet-400',
+    'from-rose-200 via-rose-300 to-rose-400',
+    'from-sky-200 via-sky-300 to-sky-400',
+    'from-lime-200 via-lime-300 to-lime-400'
   ];
   
   const index = Math.abs(hash) % colors.length;
   return colors[index];
 }
+
+// Function to generate organization avatar with abbreviation
+function generateOrganizationAvatar(organizationName: string): { bgColor: string, abbreviation: string } {
+  // Simple hash for consistent color
+  let hash = 0;
+  for (let i = 0; i < organizationName.length; i++) {
+    const char = organizationName.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  
+  // Light gray color variations
+  const grayColors = [
+    'bg-gray-100',
+    'bg-gray-150', 
+    'bg-gray-200',
+    'bg-gray-250',
+    'bg-gray-300',
+    'bg-slate-100',
+    'bg-slate-150',
+    'bg-slate-200',
+    'bg-slate-250',
+    'bg-slate-300'
+  ];
+  
+  const colorIndex = Math.abs(hash) % grayColors.length;
+  
+  // Generate abbreviation (first letter of each word)
+  const words = organizationName.split(' ');
+  const abbreviation = words.map(word => word.charAt(0).toUpperCase()).join('').slice(0, 2);
+  
+  return {
+    bgColor: grayColors[colorIndex],
+    abbreviation: abbreviation
+  };
+}
+
+
 
 // Hook for detecting visible and hidden columns
 
@@ -748,6 +847,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   onExpandAll?: () => void,
   onCollapseAll?: () => void,
   onFiltersChange?: (count: number) => void,
+  activeCategory?: string,
 }>(({
   showSettings: showSettingsProp,
   setShowSettings: setShowSettingsProp,
@@ -758,6 +858,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   onExpandAll,
   onCollapseAll,
   onFiltersChange,
+  activeCategory = "All tasks",
 }, ref) => {
   // Use a consistent "now" time to prevent hydration mismatches
   const [now] = useState(() => new Date());
@@ -785,17 +886,45 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   // Collapsed columns state
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [expandedSubtasks, setExpandedSubtasks] = useState<Record<string, boolean>>({});
+  const [highlightedSubtasks, setHighlightedSubtasks] = useState<Set<string>>(new Set());
   const [columnMenuOpen, setColumnMenuOpen] = useState<Record<string, boolean>>({});
   
   // smart-drop-menu: removed Smart Drop Menu states
   
-  // New state for column order
+  // Status selection popup state
+  const [statusSelectionPopup, setStatusSelectionPopup] = useState<{
+    isOpen: boolean;
+    task: any;
+    fromStatus: string;
+    toStatus: string;
+    availableStatuses: any[];
+  }>({
+    isOpen: false,
+    task: null,
+    fromStatus: '',
+    toStatus: '',
+    availableStatuses: []
+  });
+  
+  // New state for column order - all 5 groups
   const [columnOrder, setColumnOrder] = useState<string[]>([
+    "draft",      // CREATED group
+    "in_progress", // ACTIVE group  
+    "blocked",    // PAUSED group
+    "done",       // COMPLETED group
+    "rejected"    // REJECTED group
+  ]);
+
+  // New state for status order (for status-based categories)
+  const [statusOrder, setStatusOrder] = useState<string[]>([
+    "draft",
+    "new", 
     "to_do", 
     "in_progress", 
-    "blocked", 
-    "done", 
-    "rejected"
+    "needs_work", 
+    "blocked",
+    "done",
+    "validated"
   ]);
 
   // State for task order within columns
@@ -832,11 +961,21 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   const [virtualizationEnabled, setVirtualizationEnabled] = useState(false);
   const [taskCardHeight, setTaskCardHeight] = useState(180); // Card height with 8px spacing
 
+  // Group management states
+  const [pinnedGroups, setPinnedGroups] = useState<Set<string>>(new Set());
+  const [groupNames, setGroupNames] = useState<Record<string, string>>({});
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+
+
   // Відстежуємо зміни в швидких фільтрах і повідомляємо батьківський компонент
   useEffect(() => {
     const activeCount = Object.values(quickFilters).filter(Boolean).length;
     onFiltersChange?.(activeCount);
   }, [quickFilters, onFiltersChange]);
+
+
 
   // Auto-enable virtualization for large datasets
   useEffect(() => {
@@ -847,6 +986,16 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     }
   }, [tasks.length]);
 
+  // Don't reset collapsed state when category changes - let users control it
+  // useEffect(() => {
+  //   setCollapsed({});
+  // }, [activeCategory]);
+
+  // Clear selection when category changes
+  useEffect(() => {
+    clearSelection();
+  }, [activeCategory]);
+
   // Debounced search for better performance
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   useEffect(() => {
@@ -856,17 +1005,28 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Validate workflow rules on component mount
+  useEffect(() => {
+    const issues = validateWorkflowRules();
+    if (issues.length > 0) {
+      console.warn('Workflow validation issues:', issues);
+      toast.warning(`Workflow validation found ${issues.length} issue(s). Check console for details.`);
+    }
+  }, []);
+
 
 
 
 
   // Quick filter functions
   const isOnHold = (task: any) => {
-    return task.status === "blocked" || task.status === "needs_work";
+    // Check if task is in PAUSED group (blocked, needs_work, needs_input, on_hold)
+    const statusGroup = getStatusGroup(task.status);
+    return statusGroup === "PAUSED";
   };
 
   const isHighPriority = (task: any) => {
-    return task.priority === "High";
+    return task.priority === "High" || task.priority === "Emergency";
   };
 
   const isAssignedToMe = (task: any) => {
@@ -890,6 +1050,25 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     const lastUpdated = task.lastStatusChange || task.createdAt || now.toISOString();
     const daysDiff = Math.floor((now.getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
     return daysDiff >= 7;
+  };
+
+  const isOverdue = (task: any) => {
+    if (!task.dueDate) return false;
+    const dueDate = new Date(task.dueDate);
+    return dueDate < now;
+  };
+
+  const isDueSoon = (task: any) => {
+    if (!task.dueDate) return false;
+    const dueDate = new Date(task.dueDate);
+    const daysDiff = Math.floor((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return daysDiff >= 0 && daysDiff <= 3; // Due within 3 days
+  };
+
+  const isRecentlyUpdated = (task: any) => {
+    const lastUpdated = task.lastStatusChange || task.createdAt || now.toISOString();
+    const daysDiff = Math.floor((now.getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
+    return daysDiff <= 1; // Updated within 1 day
   };
 
   const toggleQuickFilter = (filterName: string) => {
@@ -917,10 +1096,107 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     return Object.values(quickFilters).filter(Boolean).length;
   };
 
-  // Get ordered statuses based on current order
+
+
+  const toggleGroupPin = (groupId: string) => {
+    setPinnedGroups(prev => {
+      const newPinned = new Set(prev);
+      if (newPinned.has(groupId)) {
+        newPinned.delete(groupId);
+      } else {
+        newPinned.add(groupId);
+      }
+      return newPinned;
+    });
+  };
+
+
+
+  const updateGroupName = (groupId: string, newName: string) => {
+    setGroupNames(prev => ({
+      ...prev,
+      [groupId]: newName
+    }));
+    setEditingGroupId(null);
+  };
+
+  const getGroupDisplayName = (groupId: string, defaultName: string) => {
+    return groupNames[groupId] || defaultName;
+  };
+
+  // Get ordered statuses based on current order and category
   const orderedStatuses = useMemo(() => {
-    return columnOrder.map(id => findStatusById(id)).filter(Boolean);
-  }, [columnOrder]);
+    let statuses;
+    // If we should show statuses for this category, return statuses in custom order
+    if (shouldShowStatuses(activeCategory)) {
+      // Filter statuses based on category
+      let filteredStatusOrder = statusOrder;
+      
+      // For "Created" category, only show statuses that belong to CREATED group
+      if (activeCategory === "Created") {
+        filteredStatusOrder = statusOrder.filter(statusId => {
+          const status = findStatusById(statusId);
+          return status && getStatusGroup(statusId) === "CREATED";
+        });
+        console.log(`Filtered statusOrder for "Created" category:`, filteredStatusOrder);
+      }
+      // For "Active" category, only show statuses that belong to ACTIVE group
+      else if (activeCategory === "Active") {
+        filteredStatusOrder = statusOrder.filter(statusId => {
+          const status = findStatusById(statusId);
+          return status && getStatusGroup(statusId) === "ACTIVE";
+        });
+        console.log(`Filtered statusOrder for "Active" category:`, filteredStatusOrder);
+      }
+      // For "Paused" category, only show statuses that belong to PAUSED group
+      else if (activeCategory === "Paused") {
+        filteredStatusOrder = statusOrder.filter(statusId => {
+          const status = findStatusById(statusId);
+          return status && getStatusGroup(statusId) === "PAUSED";
+        });
+        console.log(`Filtered statusOrder for "Paused" category:`, filteredStatusOrder);
+      }
+      // For "Completed" category, only show statuses that belong to COMPLETED group
+      else if (activeCategory === "Completed") {
+        filteredStatusOrder = statusOrder.filter(statusId => {
+          const status = findStatusById(statusId);
+          return status && getStatusGroup(statusId) === "COMPLETED";
+        });
+        console.log(`Filtered statusOrder for "Completed" category:`, filteredStatusOrder);
+      }
+      // For "Rejected" category, only show statuses that belong to REJECTED group
+      else if (activeCategory === "Rejected") {
+        filteredStatusOrder = statusOrder.filter(statusId => {
+          const status = findStatusById(statusId);
+          return status && getStatusGroup(statusId) === "REJECTED";
+        });
+        console.log(`Filtered statusOrder for "Rejected" category:`, filteredStatusOrder);
+      }
+      
+      statuses = filteredStatusOrder.map(id => findStatusById(id)).filter(Boolean);
+      console.log(`Category "${activeCategory}" should show statuses. statusOrder:`, statusOrder);
+      console.log(`Found statuses:`, statuses.map(s => s ? { id: s.id, title: s.title } : null).filter(Boolean));
+    } else {
+      // Otherwise, return states
+      statuses = columnOrder.map(id => findStatusById(id)).filter(Boolean);
+      console.log(`Category "${activeCategory}" should show states. columnOrder:`, columnOrder);
+      console.log(`Found states:`, statuses.map(s => s ? { id: s.id, title: s.title } : null).filter(Boolean));
+    }
+    
+    // Sort: pinned groups first, then others
+    const sortedStatuses = statuses.sort((a, b) => {
+      if (!a || !b) return 0;
+      const aPinned = pinnedGroups.has(a.id);
+      const bPinned = pinnedGroups.has(b.id);
+      
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      return 0;
+    });
+    
+    console.log(`Final orderedStatuses for "${activeCategory}":`, sortedStatuses.map(s => s ? { id: s.id, title: s.title } : null).filter(Boolean));
+    return sortedStatuses;
+  }, [statusOrder, columnOrder, activeCategory, pinnedGroups]);
 
 
 
@@ -928,29 +1204,65 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   const filteredTasks = useMemo(() => {
     let filtered = tasks;
 
+    // Category filter
+    if (activeCategory && activeCategory !== "All tasks") {
+      filtered = filtered.filter(task => task.category === activeCategory);
+    }
+
     // Archive filter
     if (!showArchived) {
       filtered = filtered.filter(task => !('archived' in task ? task.archived : false));
     }
 
-    // Quick filters
-    if (quickFilters.assignedToMe) {
-      filtered = filtered.filter(isAssignedToMe);
-    }
-    if (quickFilters.createdByMe) {
-      filtered = filtered.filter(isCreatedByMe);
-    }
-    if (quickFilters.unassigned) {
-      filtered = filtered.filter(isUnassigned);
-    }
-    if (quickFilters.onHold) {
-      filtered = filtered.filter(isOnHold);
-    }
-    if (quickFilters.highPriority) {
-      filtered = filtered.filter(isHighPriority);
-    }
-    if (quickFilters.stalled) {
-      filtered = filtered.filter(isStalled);
+    // Quick filters - apply all active filters
+    const activeFilters = Object.entries(quickFilters).filter(([_, isActive]) => isActive);
+    
+    if (activeFilters.length > 0) {
+      // Group filters by type: some work as AND, others as OR
+      const assignmentFilters = ['assignedToMe', 'createdByMe', 'unassigned'];
+      const priorityFilters = ['highPriority', 'overdue', 'dueSoon', 'recentlyUpdated', 'onHold', 'stalled'];
+      
+      const assignmentFilterActive = activeFilters.some(([key]) => assignmentFilters.includes(key));
+      const priorityFilterActive = activeFilters.some(([key]) => priorityFilters.includes(key));
+      
+      if (assignmentFilterActive) {
+        // Assignment filters work as OR (show tasks that match any of the selected assignment filters)
+        const assignmentConditions = activeFilters
+          .filter(([key]) => assignmentFilters.includes(key))
+          .map(([key]) => {
+            switch (key) {
+              case 'assignedToMe': return isAssignedToMe;
+              case 'createdByMe': return isCreatedByMe;
+              case 'unassigned': return isUnassigned;
+              default: return () => false;
+            }
+          });
+        
+        filtered = filtered.filter(task => 
+          assignmentConditions.some(condition => condition(task))
+        );
+      }
+      
+      if (priorityFilterActive) {
+        // Priority filters work as OR (show tasks that match any of the selected priority filters)
+        const priorityConditions = activeFilters
+          .filter(([key]) => priorityFilters.includes(key))
+          .map(([key]) => {
+            switch (key) {
+              case 'highPriority': return isHighPriority;
+              case 'overdue': return isOverdue;
+              case 'dueSoon': return isDueSoon;
+              case 'recentlyUpdated': return isRecentlyUpdated;
+              case 'onHold': return isOnHold;
+              case 'stalled': return isStalled;
+              default: return () => false;
+            }
+          });
+        
+        filtered = filtered.filter(task => 
+          priorityConditions.some(condition => condition(task))
+        );
+      }
     }
 
     // Optimized search filter with multi-term matching
@@ -971,7 +1283,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     }
     
     return filtered;
-  }, [tasks, debouncedSearch, showArchived, agingFilter, quickFilters]);
+  }, [tasks, debouncedSearch, showArchived, agingFilter, quickFilters, activeCategory]);
 
   // Memoized column tasks for better performance
   const memoizedColumnTasks = useMemo(() => {
@@ -1006,21 +1318,36 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
 
   // Bulk operations
-  const toggleTaskSelection = (taskId: string) => {
+  const toggleTaskSelection = useCallback((taskId: string) => {
+    console.log(`toggleTaskSelection called for taskId: ${taskId}`);
+    console.log(`Current selectedTasks before toggle:`, Array.from(selectedTasks));
+    
     setSelectedTasks(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(taskId)) {
+      const wasSelected = newSet.has(taskId);
+      
+      if (wasSelected) {
         newSet.delete(taskId);
+        console.log(`Removed taskId ${taskId} from selection`);
       } else {
         newSet.add(taskId);
+        console.log(`Added taskId ${taskId} to selection`);
       }
+      
+      const result = Array.from(newSet);
+      console.log(`New selectedTasks after toggle:`, result);
       return newSet;
     });
-  };
+  }, [selectedTasks]);
 
   const selectAllTasks = () => {
     const allTaskIds = filteredTasks.map(task => task.id);
-    setSelectedTasks(new Set(allTaskIds));
+    // Also include subtask IDs
+    const allSubtaskIds = filteredTasks.flatMap(task => 
+      task.subtasks ? task.subtasks.map((subtask: any) => subtask.id) : []
+    );
+    const allIds = [...allTaskIds, ...allSubtaskIds];
+    setSelectedTasks(new Set(allIds));
   };
 
   const clearSelection = () => {
@@ -1028,73 +1355,171 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   };
 
   // Select all tasks in a specific column
-  const selectAllTasksInColumn = (columnId: string) => {
-    const columnTaskIds = getColumnTasks(columnId).map(task => task.id);
+  const selectAllTasksInColumn = (columnId: string, clearPrevious = false) => {
+    const columnTasks = getColumnTasks(columnId);
+    const columnTaskIds = columnTasks.map(task => task.id);
+    // Also include subtask IDs from tasks in this column
+    const columnSubtaskIds = columnTasks.flatMap(task => 
+      task.subtasks ? task.subtasks.map((subtask: any) => subtask.id) : []
+    );
+    const allIds = [...columnTaskIds, ...columnSubtaskIds];
     setSelectedTasks(prev => {
-      const newSelected = new Set(prev);
-      columnTaskIds.forEach(id => newSelected.add(id));
+      const newSelected = clearPrevious ? new Set<string>() : new Set(prev);
+      allIds.forEach(id => newSelected.add(id));
       return newSelected;
     });
   };
 
   // Check if all tasks in a column are selected
   const areAllTasksInColumnSelected = (columnId: string) => {
-    const columnTaskIds = getColumnTasks(columnId).map(task => task.id);
-    return columnTaskIds.length > 0 && columnTaskIds.every(id => selectedTasks.has(id));
+    const columnTasks = getColumnTasks(columnId);
+    const columnTaskIds = columnTasks.map(task => task.id);
+    const columnSubtaskIds = columnTasks.flatMap(task => 
+      task.subtasks ? task.subtasks.map((subtask: any) => subtask.id) : []
+    );
+    const allIds = [...columnTaskIds, ...columnSubtaskIds];
+    return allIds.length > 0 && allIds.every(id => selectedTasks.has(id));
   };
 
   // Check if some tasks in a column are selected
   const areSomeTasksInColumnSelected = (columnId: string) => {
-    const columnTaskIds = getColumnTasks(columnId).map(task => task.id);
-    return columnTaskIds.some(id => selectedTasks.has(id));
+    const columnTasks = getColumnTasks(columnId);
+    const columnTaskIds = columnTasks.map(task => task.id);
+    const columnSubtaskIds = columnTasks.flatMap(task => 
+      task.subtasks ? task.subtasks.map((subtask: any) => subtask.id) : []
+    );
+    const allIds = [...columnTaskIds, ...columnSubtaskIds];
+    return allIds.some(id => selectedTasks.has(id));
   };
 
   const bulkArchive = () => {
     setTasks(prev => 
-      prev.map(task => 
-        selectedTasks.has(task.id) ? { ...task, archived: true, archivedAt: new Date().toISOString() } : task
-      )
+      prev.map(task => {
+        // Check if main task is selected
+        if (selectedTasks.has(task.id)) {
+          return { ...task, archived: true, archivedAt: new Date().toISOString() };
+        }
+        // Check if any subtasks are selected
+        if (task.subtasks) {
+          const updatedSubtasks = task.subtasks.map((subtask: any) => 
+            selectedTasks.has(subtask.id) ? { ...subtask, archived: true, archivedAt: new Date().toISOString() } : subtask
+          );
+          return { ...task, subtasks: updatedSubtasks };
+        }
+        return task;
+      })
     );
     clearSelection();
   };
 
   const bulkUnarchive = () => {
     setTasks(prev => 
-      prev.map(task => 
-        selectedTasks.has(task.id) ? { ...task, archived: false, archivedAt: null } : task
-      )
+      prev.map(task => {
+        // Check if main task is selected
+        if (selectedTasks.has(task.id)) {
+          return { ...task, archived: false, archivedAt: null };
+        }
+        // Check if any subtasks are selected
+        if (task.subtasks) {
+          const updatedSubtasks = task.subtasks.map((subtask: any) => 
+            selectedTasks.has(subtask.id) ? { ...subtask, archived: false, archivedAt: null } : subtask
+          );
+          return { ...task, subtasks: updatedSubtasks };
+        }
+        return task;
+      })
     );
     clearSelection();
   };
 
   const bulkDelete = () => {
-    setTasks(prev => prev.filter(task => !selectedTasks.has(task.id)));
+    setTasks(prev => 
+      prev.map(task => {
+        // If main task is selected, remove it entirely
+        if (selectedTasks.has(task.id)) {
+          return null as any;
+        }
+        // If subtasks are selected, remove them
+        if (task.subtasks) {
+          const updatedSubtasks = task.subtasks.filter((subtask: any) => !selectedTasks.has(subtask.id));
+          return { ...task, subtasks: updatedSubtasks };
+        }
+        return task;
+      }).filter((task): task is any => task !== null)
+    );
     clearSelection();
   };
 
-  const getTaskMetrics = () => {
-    // Use the same filtered tasks that are displayed in columns
-    const activeTasks = filteredTasks.filter(t => !('archived' in t ? t.archived : false));
-    const blockedTasks = activeTasks.filter(t => t.status === "blocked" || t.status === "needs_work");
-    const doneTasks = activeTasks.filter(t => t.status === "done");
-    const validatedTasks = activeTasks.filter(t => t.status === "validated");
 
-    return {
-      total: activeTasks.length,
-      blocked: blockedTasks.length,
-      stuck: 0,
-      done: doneTasks.length,
-      validated: validatedTasks.length,
-      doneNotValidated: doneTasks.length - validatedTasks.length
-    };
-  };
   
   // Grouped/flat view
   function getColumnTasks(status: string) {
+    console.log(`getColumnTasks called for status: ${status}`);
+    console.log(`Current filteredTasks:`, filteredTasks.map(t => ({ id: t.id, status: t.status, title: t.title })));
     let tasksInColumn: any[] = [];
     
-    // Always show only parent tasks, subtasks will be shown under their parent
-    tasksInColumn = filteredTasks.filter(t => t.status === status);
+    // Get the group for this status
+    const statusGroup = getStatusGroup(status);
+    console.log(`Status group for ${status}: ${statusGroup}`);
+    
+    // Show parent tasks that belong to the same group as this status
+    const parentTasksInStatus = filteredTasks.filter(t => {
+      const taskGroup = getStatusGroup(t.status);
+      const matches = taskGroup === statusGroup;
+      if (matches) {
+        console.log(`Found parent task: ${t.id} (${t.title}) with status ${t.status} in group ${taskGroup}`);
+      }
+      return matches;
+    });
+    console.log(`Parent tasks in status ${status}: ${parentTasksInStatus.length}`);
+
+    // Get all subtasks that belong to the same group
+    const subtasksInStatus: any[] = [];
+    
+    // Show subtasks as separate elements on all tabs
+    filteredTasks.forEach(parentTask => {
+      if (parentTask.subtasks) {
+        parentTask.subtasks.forEach((subtask: any) => {
+          const subtaskGroup = getStatusGroup(subtask.status);
+          if (subtaskGroup === statusGroup) {
+            // Special logic for "Created" column on "All Tasks" view
+            if (activeCategory === "All tasks" && statusGroup === "CREATED") {
+              // In "Created" column, NEVER show subtasks as separate cards
+              // They should only appear when parent task is expanded
+              console.log(`Hiding subtask ${subtask.id} in "Created" column - subtasks should always stay with parent`);
+              return; // Skip this subtask
+            }
+            
+            // Add parent task info to subtask for display
+            const subtaskWithParent = {
+              ...subtask,
+              parentTask: {
+                id: parentTask.id,
+                title: parentTask.title,
+                taskId: parentTask.taskId,
+                category: parentTask.category,
+                status: parentTask.status // Include parent status for business logic validation
+              },
+              isSubtask: true
+            };
+            subtasksInStatus.push(subtaskWithParent);
+            console.log(`Found subtask: ${subtask.id} (${subtask.title}) with status ${subtask.status} in group ${subtaskGroup}`);
+          }
+        });
+      }
+    });
+    console.log(`Subtasks in status ${status}: ${subtasksInStatus.length}`);
+
+    // Combine parent tasks and subtasks
+    tasksInColumn = [...parentTasksInStatus, ...subtasksInStatus];
+    console.log(`Total tasks in column ${status}: ${tasksInColumn.length}`);
+
+    // Debug logging for category pages
+    if (activeCategory !== "All tasks" && tasksInColumn.length === 0) {
+      console.log(`No tasks found for status "${status}" in category "${activeCategory}"`);
+      console.log(`Available statuses in filteredTasks:`, [...new Set(filteredTasks.map(t => t.status))]);
+      console.log(`Total filteredTasks:`, filteredTasks.length);
+    }
 
     // Apply custom order if exists
     const columnOrder = taskOrder[status];
@@ -1121,58 +1546,344 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     return tasksInColumn;
   }
 
-  // 1. Start dragging (onDragStart) - Найпростіший підхід
+  // 1. Start dragging (onDragStart) - Простий підхід
   const onDragStart = (start: any) => {
     const task = tasks.find((t) => t.id === start.draggableId);
-    if (task) setDraggedTask(task);
+    if (task) {
+      setDraggedTask(task);
+    }
   };
 
-  // 4. End dragging (onDragEnd) - Найпростіший підхід
+  // 4. End dragging (onDragEnd) - Enhanced logging and debugging
   const onDragEnd = (result: DropResult) => {
+    console.log('=== DRAG END DEBUG ===');
+    console.log('onDragEnd called with result:', result);
+    console.log('Current tasks state before update:', tasks.map(t => ({ id: t.id, status: t.status, title: t.title })));
     setDraggedTask(null);
-    const { destination, source, draggableId } = result;
-    if (!destination) return;
-    if (destination.droppableId === source.droppableId) return;
-    // Find task or subtask
-    let task = tasks.find((t) => t.id === draggableId);
-    let isSubtask = false;
-    if (!task) {
-      for (const t of tasks) {
-        if (t.subtasks) {
-          const st = t.subtasks.find((st: any) => st.id === draggableId);
-          if (st) {
-            // Inherit missing fields from parent for type safety
-            task = { ...t, ...st };
-            isSubtask = true;
-            break;
+    
+    const { destination, source, draggableId, type } = result;
+    
+    if (!destination) {
+      console.log('No destination, dropping cancelled');
+      return;
+    }
+    
+    console.log(`Drag operation: ${type}, from ${source.droppableId} to ${destination.droppableId}`);
+    
+    // Handle column reordering
+    if (type === "COLUMN") {
+      if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+      
+      // Update the appropriate order based on category
+      if (shouldShowStatuses(activeCategory)) {
+        const newStatusOrder = Array.from(statusOrder);
+        const [removed] = newStatusOrder.splice(source.index, 1);
+        newStatusOrder.splice(destination.index, 0, removed);
+        
+        setStatusOrder(newStatusOrder);
+        toast.success("Status order updated");
+      } else {
+        const newColumnOrder = Array.from(columnOrder);
+        const [removed] = newColumnOrder.splice(source.index, 1);
+        newColumnOrder.splice(destination.index, 0, removed);
+        
+        setColumnOrder(newColumnOrder);
+        toast.success("Column order updated");
+      }
+      return;
+    }
+    
+    // Handle task reordering within the same column
+    if (destination.droppableId === source.droppableId && destination.index !== source.index) {
+      console.log('Reordering task within same column');
+      const columnId = destination.droppableId;
+      const columnTasks = getColumnTasks(columnId);
+      
+      // Update task order for this column
+      setTaskOrder(prev => {
+        const currentOrder = prev[columnId] || columnTasks.map(t => t.id);
+        const newOrder = Array.from(currentOrder);
+        const [removed] = newOrder.splice(source.index, 1);
+        newOrder.splice(destination.index, 0, removed);
+        
+        return {
+          ...prev,
+          [columnId]: newOrder
+        };
+      });
+      
+      toast.success("Task order updated");
+      return;
+    }
+    
+    // Handle task moving between columns
+    if (destination.droppableId !== source.droppableId) {
+      console.log(`Moving task between columns: ${source.droppableId} -> ${destination.droppableId}`);
+      
+      // Find task or subtask
+      let task = tasks.find((t) => t.id === draggableId);
+      let isSubtask = false;
+      if (!task) {
+        console.log(`Task ${draggableId} not found, looking for subtask...`);
+        for (const t of tasks) {
+          if (t.subtasks) {
+            const st = t.subtasks.find((st: any) => st.id === draggableId);
+            if (st) {
+              console.log(`Found subtask ${draggableId} in task ${t.id}`);
+              // Inherit missing fields from parent for type safety
+              task = { ...t, ...st };
+              isSubtask = true;
+              break;
+            }
           }
         }
       }
+      if (!task) {
+        console.log(`Neither task nor subtask found for ${draggableId}`);
+        toast.error(`Task not found: ${draggableId}`);
+        return;
+      }
+      console.log(`Found ${isSubtask ? 'subtask' : 'task'}: ${draggableId}, current status: ${task.status}`);
+      
+      // Check if we need to show status selection popup
+      if (shouldShowStatusSelection(task.status, destination.droppableId)) {
+        console.log('Showing status selection popup');
+        const fromGroup = getGroupNameByStatus(task.status);
+        const toGroup = getGroupNameByStatus(destination.droppableId);
+        const availableStatuses = getAvailableStatusesForGroup(toGroup);
+        
+        // Filter available statuses based on workflow transitions
+        let parentStatus: string | undefined;
+        if (isSubtask) {
+          // Find the parent task to get its status for business logic validation
+          const parentTask = tasks.find(t => t.subtasks?.some((st: any) => st.id === draggableId));
+          parentStatus = parentTask?.status;
+        }
+        
+        const validStatuses = availableStatuses.filter(status => 
+          isValidTransition(task.status, status.id, parentStatus)
+        );
+        
+        if (validStatuses.length > 0) {
+          setStatusSelectionPopup({
+            isOpen: true,
+            task,
+            fromStatus: task.status,
+            toStatus: destination.droppableId,
+            availableStatuses: validStatuses
+          });
+          return; // Don't proceed with the move yet
+        }
+      }
+      
+      // Check workflow transitions for all categories
+      let parentStatus: string | undefined;
+      if (isSubtask) {
+        // Find the parent task to get its status for business logic validation
+        const parentTask = tasks.find(t => t.subtasks?.some((st: any) => st.id === draggableId));
+        parentStatus = parentTask?.status;
+      }
+      
+      console.log(`Checking transition: ${task.status} -> ${destination.droppableId} (parent: ${parentStatus})`);
+      
+      if (!isValidTransition(task.status, destination.droppableId, parentStatus)) {
+        const fromStatus = findStatusById(task.status)?.title || task.status;
+        const toStatus = findStatusById(destination.droppableId)?.title || destination.droppableId;
+        
+        // Provide more specific error messages for business logic violations
+        if (parentStatus === "Rejected" || parentStatus === "rejected") {
+          toast.error(`Cannot move subtask from "${fromStatus}" to "${toStatus}" because parent task is rejected`);
+        } else if (parentStatus === "Done" || parentStatus === "done") {
+          toast.error(`Cannot move subtask from "${fromStatus}" to "${toStatus}" because parent task is done`);
+        } else {
+          toast.error(`Cannot move task from "${fromStatus}" to "${toStatus}"`);
+        }
+        return;
+      }
+      
+      // Update task status with optimistic update
+      if (isSubtask) {
+        console.log(`Moving subtask ${draggableId} from ${task.status} to ${destination.droppableId}`);
+        setTasks(prev => {
+          const newTasks = prev.map(t => ({
+            ...t,
+            subtasks: t.subtasks ? t.subtasks.map((st: any) => st.id === draggableId ? { ...st, status: destination.droppableId } : st) : [],
+          }));
+          console.log(`Updated tasks state:`, newTasks.map(t => ({ id: t.id, subtasks: t.subtasks?.map((st: any) => ({ id: st.id, status: st.status })) })));
+          return newTasks;
+        });
+        
+        // Force a re-render by updating the task order
+        setTaskOrder(prev => {
+          const newOrder = { ...prev };
+          // Remove from source column
+          if (newOrder[source.droppableId]) {
+            newOrder[source.droppableId] = newOrder[source.droppableId].filter(id => id !== draggableId);
+          }
+          // Add to destination column
+          if (newOrder[destination.droppableId]) {
+            newOrder[destination.droppableId] = [draggableId, ...newOrder[destination.droppableId]];
+          } else {
+            newOrder[destination.droppableId] = [draggableId];
+          }
+          console.log(`Updated task order:`, newOrder);
+          return newOrder;
+        });
+      } else {
+        console.log(`Moving task ${draggableId} from ${task.status} to ${destination.droppableId}`);
+        setTasks(prev => {
+          const newTasks = prev.map(t => t.id === draggableId ? { ...t, status: destination.droppableId } : t);
+          console.log(`Updated tasks state:`, newTasks.map(t => ({ id: t.id, status: t.status })));
+          return newTasks;
+        });
+        
+        // Force a re-render by updating the task order
+        setTaskOrder(prev => {
+          const newOrder = { ...prev };
+          // Remove from source column
+          if (newOrder[source.droppableId]) {
+            newOrder[source.droppableId] = newOrder[source.droppableId].filter(id => id !== draggableId);
+          }
+          // Add to destination column
+          if (newOrder[destination.droppableId]) {
+            newOrder[destination.droppableId] = [draggableId, ...newOrder[destination.droppableId]];
+          } else {
+            newOrder[destination.droppableId] = [draggableId];
+          }
+          console.log(`Updated task order:`, newOrder);
+          return newOrder;
+        });
+      }
+      
+      // Update task order in destination column
+      setTaskOrder(prev => {
+        const destinationColumnTasks = getColumnTasks(destination.droppableId);
+        const currentOrder = prev[destination.droppableId] || destinationColumnTasks.map(t => t.id);
+        const newOrder = Array.from(currentOrder);
+        
+        // Insert the moved task at the specified position
+        newOrder.splice(destination.index, 0, draggableId);
+        
+        return {
+          ...prev,
+          [destination.droppableId]: newOrder
+        };
+      });
+      
+      toast.success(`Task moved to ${destination.droppableId}`);
+      
+      // Additional debugging: Log the current state after the move
+      setTimeout(() => {
+        console.log(`=== POST-MOVE DEBUG ===`);
+        console.log(`Tasks state after move:`, tasks.map(t => ({ id: t.id, status: t.status, title: t.title })));
+        console.log(`Task order after move:`, taskOrder);
+        console.log(`Filtered tasks:`, filteredTasks.map(t => ({ id: t.id, status: t.status, title: t.title })));
+        console.log(`=== END POST-MOVE DEBUG ===`);
+      }, 100);
+      
+      // Test function to manually change a task status (for debugging)
+      const testStatusChange = () => {
+        console.log('=== TEST STATUS CHANGE ===');
+        setTasks(prev => {
+          const newTasks = prev.map(t => 
+            t.id === 'T1' ? { ...t, status: 'done' } : t
+          );
+          console.log('Test status change - new tasks:', newTasks.map(t => ({ id: t.id, status: t.status })));
+          return newTasks;
+        });
+      };
+      
+      // Expose test function globally for debugging
+      (window as any).testStatusChange = testStatusChange;
     }
-    if (!task) return;
-    if (!isValidTransition(task.status, destination.droppableId)) {
-      toast.error(`Cannot move task from ${task.status} to ${destination.droppableId}`);
-      return;
-    }
-    if (isSubtask) {
-      setTasks(prev => prev.map(t => ({
-        ...t,
-        subtasks: t.subtasks ? t.subtasks.map((st: any) => st.id === draggableId ? { ...st, status: destination.droppableId } : st) : [],
-      })));
-    } else {
-      setTasks(prev => prev.map(t => t.id === draggableId ? { ...t, status: destination.droppableId } : t));
-    }
-    toast.success(`Task moved to ${destination.droppableId}`);
   };
   
   // smart-drop-menu: removed all Smart Drop Menu related functions and effects
+
+  // Handle status selection popup confirmation
+  const handleStatusSelectionConfirm = (selectedStatus: string) => {
+    const { task, fromStatus, toStatus } = statusSelectionPopup;
+    
+    if (!task) return;
+    
+    // Find if it's a subtask
+    let isSubtask = false;
+    let parentTask = null;
+    
+    if (!tasks.find(t => t.id === task.id)) {
+      // It's a subtask
+      isSubtask = true;
+      parentTask = tasks.find(t => t.subtasks?.some((st: any) => st.id === task.id));
+    }
+    
+    // Update task status
+    if (isSubtask && parentTask) {
+      setTasks(prev => {
+        const newTasks = prev.map(t => ({
+          ...t,
+          subtasks: t.subtasks ? t.subtasks.map((st: any) => st.id === task.id ? { ...st, status: selectedStatus } : st) : [],
+        }));
+        return newTasks;
+      });
+      
+      // Show success message for subtask move
+      const fromGroup = getGroupNameByStatus(fromStatus);
+      const toGroup = getGroupNameByStatus(selectedStatus);
+      toast.success(`Subtask "${task.title}" moved from ${fromGroup} to ${toGroup}`);
+    } else {
+      setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: selectedStatus } : t));
+      
+      // Show success message for main task move
+      const fromGroup = getGroupNameByStatus(fromStatus);
+      const toGroup = getGroupNameByStatus(selectedStatus);
+      toast.success(`Task "${task.title}" moved from ${fromGroup} to ${toGroup}`);
+    }
+    
+    // Update task order in destination column
+    setTaskOrder(prev => {
+      const destinationColumnTasks = getColumnTasks(selectedStatus);
+      const currentOrder = prev[selectedStatus] || destinationColumnTasks.map(t => t.id);
+      const newOrder = Array.from(currentOrder);
+      
+      // Insert the moved task at the beginning
+      newOrder.unshift(task.id);
+      
+      return {
+        ...prev,
+        [selectedStatus]: newOrder
+      };
+    });
+  };
+
+  // Handle status selection popup close
+  const handleStatusSelectionClose = () => {
+    setStatusSelectionPopup({
+      isOpen: false,
+      task: null,
+      fromStatus: '',
+      toStatus: '',
+      availableStatuses: []
+    });
+  };
+
+  // Function to check if drag should show status selection popup
+  const shouldShowStatusSelection = (fromStatus: string, toStatus: string): boolean => {
+    // Show status selection popup for all categories when moving between different statuses
+    if (fromStatus !== toStatus) {
+      const toGroup = getStatusGroup(toStatus);
+      const availableStatuses = getAvailableStatusesForGroup(toGroup);
+      return availableStatuses.length > 0; // Show popup if there are any statuses to choose from
+    }
+    
+    return false;
+  };
 
 
 
 
 
   // Function to render subtask content with identical structure to main tasks
-  const renderSubtaskContent = useCallback((subtask: any) => {
+  const renderSubtaskContent = useCallback((subtask: any, isSubtask: boolean) => {
     const showAttachments = cardFields.attachments;
     const showComments = cardFields.comments;
     
@@ -1180,7 +1891,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     const visibleFields = {
       taskId: cardFields.taskId,
       name: cardFields.name !== false,
-      status: cardFields.status !== false,
+      status: cardFields.status !== false, // Show status on all tabs now
       description: cardFields.description && subtask.description,
       tags: cardFields.tags && subtask.tags && subtask.tags.length > 0,
       organization: cardFields.organization,
@@ -1203,47 +1914,65 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       return "p-4"; // Complex cards
     };
 
+    // Find parent task if this is a subtask
+    let parentTask = null;
+    if (isSubtask) {
+      parentTask = tasks.find(t => t.subtasks && t.subtasks.some((st: any) => st.id === subtask.id));
+    }
+
     return (
-      <Card className="kanban-card group border-[#e8e8ec] rounded-2xl w-full cursor-grab bg-white border-l-2 border-l-gray-300 shadow-sm">
-        <CardContent className={`${getDynamicPadding()}`}>
+      <div className={`${getDynamicPadding()} ${selectedTasks.has(subtask.id) ? 'bg-blue-50 border border-blue-200 rounded-lg' : ''}`}>
+        {/* Subtask label */}
+        {isSubtask && (
+          <div className="flex items-center gap-1 mb-1">
+            <svg className="w-3 h-3 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+            <span className="text-xs text-gray-500">Subtask</span>
+          </div>
+        )}
           {/* ID line */}
-          {cardFields.taskId && (
-            <div className="flex items-center justify-between text-xs font-semibold text-[#60646c] mb-1">
-              <div className="flex items-center gap-1">
-                <span>{subtask.taskId}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                {/* Status Label */}
-                {cardFields.status !== false && (() => {
-                  const status = findStatusById(subtask.status);
-                  if (status) {
-                    return (
-                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${status.color}`}>
+          <div className="flex items-center justify-between text-xs font-semibold text-[#60646c] mb-1">
+            <div className="flex items-center gap-1">
+              {cardFields.taskId && <span>{subtask.taskId}</span>}
+            </div>
+            <div className="flex items-center gap-1">
+              {/* Status Label - Show only on "All tasks" tab */}
+              {cardFields.status !== false && activeCategory === "All tasks" && (() => {
+                const status = findStatusById(subtask.status);
+                if (status) {
+                  return (
+                    <div className="flex items-center gap-1">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${statusBadgeColorMap[subtask.status] || status.color}`}>
                         {status.title}
                       </span>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
+
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
-          )}
-          
+          </div>
           {/* Title (Name) */}
           {cardFields.name !== false && (
             <div className="mb-1">
               <div 
-                className="text-sm font-semibold text-[#1c2024] cursor-pointer hover:text-blue-600 transition-colors"
+                className="text-xs font-medium text-[#1c2024] cursor-pointer hover:text-blue-600 transition-colors"
                 onClick={() => onTaskClick && onTaskClick(subtask)}
               >
                 {subtask.title}
               </div>
+            {/* Parent task info for subtasks */}
+            {isSubtask && parentTask && (
+              <div className="text-xs text-gray-400 mt-0.5">
+                Parent: <span className="font-semibold">{parentTask.taskId}</span> {parentTask.title}
+              </div>
+            )}
             </div>
           )}
           
           {/* Description */}
           {cardFields.description && subtask.description && (
-            <div className="text-sm text-[#8b8d98] mb-2 line-clamp-3">{subtask.description}</div>
+            <div className="text-xs text-[#8b8d98] mb-2 line-clamp-3">{subtask.description}</div>
           )}
           
           {/* Tags */}
@@ -1302,12 +2031,12 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                   {subtask.priority === "Low" && (
                     <ChevronDown className="w-4 h-4 text-gray-600" />
                   )}
-                  <span className="text-sm font-medium text-[#1c2024]">{subtask.priority || "Normal"}</span>
+                  <span className="text-xs font-medium text-[#1c2024]">{subtask.priority || "Normal"}</span>
                 </div>
               </div>
               {/* Due date */}
               {cardFields.dueDate && (
-                <div className="text-sm text-[#1c2024] flex items-center gap-1">
+                <div className="text-xs text-[#1c2024] flex items-center gap-1">
                   <span>Due:</span>
                   <span className="font-medium">{subtask.dueDate}</span>
                 </div>
@@ -1333,14 +2062,18 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 )}
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  }, [cardFields, onTaskClick]);
+          
 
-  // Memoize task metrics to update when filters change
-  const taskMetrics = useMemo(() => getTaskMetrics(), [filteredTasks]);
+        )}
+        
+        {/* Hover buttons for subtasks - removed */}
+        </div>
+    );
+  }, [cardFields, activeCategory, selectedTasks, onTaskClick, tasks]);
+
+
+
+
 
   // Optimized card rendering with virtualization support
   const renderCard = useCallback((task: any, isSubtask = false, taskIndex = 0) => {
@@ -1352,7 +2085,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     const visibleFields = {
       taskId: cardFields.taskId,
       name: cardFields.name !== false,
-      status: cardFields.status !== false,
+      status: cardFields.status !== false && activeCategory === "All tasks", // Show status only on "All tasks" tab
       description: cardFields.description && task.description,
       tags: cardFields.tags && task.tags && task.tags.length > 0,
       organization: cardFields.organization && !isSubtask,
@@ -1387,99 +2120,106 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             ref={provided.innerRef}
             {...provided.draggableProps}
             className="relative"
-            style={provided.draggableProps.style}
+            style={{
+              ...provided.draggableProps.style,
+              transform: provided.draggableProps.style?.transform,
+            }}
           >
               <Card 
                 {...provided.dragHandleProps}
                 className={`kanban-card group border-[#e8e8ec] rounded-2xl w-full cursor-grab ${
                   snapshot.isDragging 
                     ? 'dragging shadow-xl shadow-black/20 border-blue-300 cursor-grabbing transition-none' 
+                    : selectedTasks.has(task.id)
+                    ? 'shadow-lg shadow-blue-200 border-blue-300 bg-blue-50 transition-all duration-200 ease-out'
+                    : highlightedSubtasks.has(task.id)
+                    ? 'shadow-lg shadow-blue-200 border-blue-300 bg-blue-50 transition-all duration-200 ease-out'
                     : 'shadow-none hover:shadow-lg hover:shadow-black/15 hover:border-gray-300 transition-all duration-200 ease-out'
                 }`}
               >
 
               <CardContent className={`${getDynamicPadding()}`}>
-
-
-                                {/* ID line */}
-                {cardFields.taskId && (
-                  <div className="flex items-center justify-between text-xs font-semibold text-[#60646c] mb-1">
-                    <div className="flex items-center gap-1">
-                      {/* Bulk selection checkbox */}
-                      <input
-                        type="checkbox"
-                        checked={selectedTasks.has(task.id)}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          toggleTaskSelection(task.id);
-                        }}
-                        className="w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      {/* Subtask indicator for grouped view */}
-                      {isSubtask && !task.isSubtaskInFlat && (
-                        <svg className="w-3 h-3 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                          <path d="M6 9l6 0" />
-                          <path d="M4 5l4 0" />
-                          <path d="M6 5v11a1 1 0 0 0 1 1h5" />
-                          <path d="M12 7m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z" />
-                          <path d="M12 15m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z" />
-                        </svg>
-                      )}
-                      <span>{task.taskId}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {/* Status Label */}
-                      {cardFields.status !== false && (() => {
-                        const status = findStatusById(task.status);
-                        if (status) {
-                          return (
-                            <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${status.color}`}>
-                              {status.title}
-                            </span>
-                          );
-                        }
-                        return null;
-                      })()}
-                      {/* Archive button */}
-                      {/* Archive button hidden */}
-                      {/* {!isSubtask && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if ('archived' in task && task.archived) {
-                              unarchiveTask(task.id);
-                            } else {
-                              archiveTask(task.id);
-                            }
-                          }}
-                          title={('archived' in task && task.archived) ? 'Unarchive' : 'Archive'}
-                        >
-                          {('archived' in task && task.archived) ? '📦' : '📁'}
-                        </Button>
-                      )} */}
-                    </div>
+                {/* Parent task indicator for subtasks */}
+                {isSubtask && task.parentTask && (
+                  <div className="px-3 py-1 bg-gray-100 rounded-t-2xl text-xs text-gray-600 font-medium border-b border-gray-200 -mx-3 -mt-3 mb-3">
+                    Part of: {task.parentTask.title}
                   </div>
                 )}
+
+                <div className="flex items-center justify-between text-xs font-semibold text-[#60646c] mb-1">
+                  <div className="flex items-center gap-1">
+                    {/* Subtask indicator */}
+                    {isSubtask && (
+                      <div className="flex items-center gap-1">
+                        <svg className="w-3 h-3 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                          <path d="M9 11l3 3L22 4" />
+                          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                        </svg>
+                        <span className="text-xs text-gray-500">Subtask</span>
+                      </div>
+                    )}
+                    {cardFields.taskId && <span>{task.taskId}</span>}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {/* Status Label - Show on all tabs now */}
+                    {cardFields.status !== false && (() => {
+                      const status = findStatusById(task.status);
+                      if (status) {
+                        return (
+                          <div className="flex items-center gap-1">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${statusBadgeColorMap[task.status] || status.color}`}>
+                              {status.title}
+                            </span>
+
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                    {/* Archive button */}
+                    {/* Archive button hidden */}
+                    {/* {!isSubtask && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if ('archived' in task && task.archived) {
+                            unarchiveTask(task.id);
+                          } else {
+                            archiveTask(task.id);
+                          }
+                        }}
+                        title={('archived' in task && task.archived) ? 'Unarchive' : 'Archive'}
+                      >
+                        {('archived' in task && task.archived) ? '📦' : '📁'}
+                      </Button>
+                    )} */}
+                  </div>
+                </div>
                 {/* Title (Name) */}
                 {cardFields.name !== false && (
                   <div className="mb-1">
                     <div 
-                      className={`${isSubtask ? "text-sm" : "text-base"} font-semibold text-[#1c2024] cursor-pointer hover:text-blue-600 transition-colors`}
+                      className="text-xs font-medium text-[#1c2024] cursor-pointer hover:text-blue-600 transition-colors"
                       onClick={() => onTaskClick && onTaskClick(task)}
                     >
                       {task.title}
                     </div>
+                    {/* Parent task info for subtasks */}
+                    {isSubtask && task.parentTaskTitle && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Parent: {task.parentTaskTitle}
+                      </div>
+                    )}
                   </div>
                 )}
                 
 
                 {/* Description */}
                 {cardFields.description && task.description && (
-                  <div className="text-sm text-[#8b8d98] mb-2 line-clamp-3">{task.description}</div>
+                  <div className="text-xs text-[#8b8d98] mb-2 line-clamp-3">{task.description}</div>
                 )}
                 {/* Tags */}
                 {cardFields.tags && task.tags && task.tags.length > 0 && (
@@ -1502,10 +2242,15 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                     {/* Org logo and organization - приховано для підзадач */}
                     {!isSubtask && (
                       <div className={`flex items-center gap-2 ${cardFields.organization ? '' : 'invisible'}`}>
-                        <span className={`w-6 h-6 rounded-full bg-gradient-to-br ${generateColorFromText(task.clientInfo || 'default')} flex items-center justify-center`}>
-                          <span className="sr-only">Org</span>
-                        </span>
-                        <span className="text-sm text-[#1c2024] font-medium mr-2">{task.clientInfo}</span>
+                        {(() => {
+                          const avatar = generateOrganizationAvatar(task.clientInfo || 'Default');
+                          return (
+                            <span className={`w-6 h-6 rounded-full ${avatar.bgColor} flex items-center justify-center text-xs font-semibold text-gray-700`}>
+                              {avatar.abbreviation}
+                            </span>
+                          );
+                        })()}
+                        <span className="text-xs text-[#1c2024] font-medium mr-2">{task.clientInfo}</span>
                       </div>
                     )}
                     {/* Assignee avatars - aligned to the right */}
@@ -1532,29 +2277,34 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                         {/* Different icons for each priority */}
                         {task.priority === "Emergency" && (
                           <div className="flex">
-                            <ChevronUp className="w-4 h-4 text-gray-600 -mr-1" />
-                            <ChevronUp className="w-4 h-4 text-gray-600" />
+                            <ChevronUp className="w-4 h-4 text-red-600 -mr-1" />
+                            <ChevronUp className="w-4 h-4 text-red-600" />
                           </div>
                         )}
                         {task.priority === "High" && (
-                          <ChevronUp className="w-4 h-4 text-gray-600" />
+                          <ChevronUp className="w-4 h-4 text-orange-600" />
                         )}
                         {(task.priority === "Normal" || !task.priority) && (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-minus w-4 h-4 text-gray-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-minus w-4 h-4 text-blue-600">
                             <path d="M5 12h14"></path>
                           </svg>
                         )}
                         {task.priority === "Low" && (
-                          <ChevronDown className="w-4 h-4 text-gray-600" />
+                          <ChevronDown className="w-4 h-4 text-[#16a34a]" />
                         )}
-                        <span className="text-sm font-medium text-[#1c2024]">{task.priority || "Normal"}</span>
+                        <span className={`text-xs font-medium ${
+                          task.priority === "Emergency" ? "text-red-600" :
+                          task.priority === "High" ? "text-orange-600" :
+                          task.priority === "Low" ? "text-[#16a34a]" :
+                          "text-blue-600"
+                        }`}>{task.priority || "Normal"}</span>
                       </div>
                     </div>
                     {/* Due date */}
                     {cardFields.dueDate && (
-                      <div className="text-sm text-[#1c2024] flex items-center gap-1">
+                      <div className="text-xs text-[#8b8d98] flex items-center gap-1">
                         <span>Due:</span>
-                        <span className="font-medium">{task.dueDate}</span>
+                        <span className="text-[#1c2024] font-medium">{task.dueDate}</span>
                       </div>
                     )}
                   </div>
@@ -1562,22 +2312,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 {/* Subtasks + Attachments + Comments в один рядок */}
                 {(subtasksCount > 0 || showAttachments || showComments) && (
                   <div className="flex items-center gap-3 mt-2 w-full">
-                    {subtasksCount > 0 && (
-                      <div 
-                        className="flex items-center gap-1 cursor-pointer select-none hover:bg-gray-100 rounded px-0.5 py-0 transition-colors duration-100 ease-out"
-                        onClick={() => {
-                          console.log('Toggling subtasks for task:', task.id, 'current state:', expandedSubtasks[task.id]);
-                          setExpandedSubtasks(prev => ({ ...prev, [task.id]: !prev[task.id] }));
-                        }}
-                      >
-                        {expandedSubtasks[task.id] ? (
-                          <ChevronDown className="w-4 h-4 text-[#8b8d98]" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 text-[#8b8d98]" />
-                        )}
-                        <span className="font-medium text-sm text-[#1c2024]">{subtasksCount} subtasks</span>
-                      </div>
-                    )}
+
                     <div className="flex items-center gap-1 ml-auto">
                       {showAttachments && (
                         <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#f3f3f3] text-xs text-[#60646c]">
@@ -1594,6 +2329,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                     </div>
                   </div>
                 )}
+                
+                {/* Hover buttons - removed */}
               </CardContent>
             </Card>
           </div>
@@ -1611,7 +2348,16 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       }
     });
     setCollapsed(newCollapsed);
-    toast.success("All groups expanded");
+    
+    // Expand all subtasks
+    const allTaskIds = filteredTasks.map(task => task.id);
+    const newExpandedSubtasks: Record<string, boolean> = {};
+    allTaskIds.forEach(taskId => {
+      newExpandedSubtasks[taskId] = true;
+    });
+    setExpandedSubtasks(newExpandedSubtasks);
+    
+    toast.success("All groups expanded and subtasks grouped");
     if (onExpandAll) onExpandAll();
   };
 
@@ -1623,7 +2369,11 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       }
     });
     setCollapsed(newCollapsed);
-    toast.success("All groups collapsed");
+    
+    // Collapse all subtasks
+    setExpandedSubtasks({});
+    
+    toast.success("All groups collapsed and subtasks ungrouped");
     if (onCollapseAll) onCollapseAll();
   };
 
@@ -1640,47 +2390,815 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
 
 
+  // Відображення Kanban колонок
+  const renderColumns = () => {
+    console.log(`renderColumns called for category "${activeCategory}"`);
+    console.log(`shouldShowStatuses(${activeCategory}):`, shouldShowStatuses(activeCategory));
+    console.log(`orderedStatuses length:`, orderedStatuses.length);
+    
+    if (shouldShowStatuses(activeCategory)) {
+      // Дозволяємо drag&drop колонок
+      return (
+        <Droppable droppableId="board" type="COLUMN" direction="horizontal">
+          {(provided) => (
+            <div ref={provided.innerRef} {...provided.droppableProps} className="kanban-scrollbar flex gap-3 min-h-[700px] overflow-x-auto horizontal-hover-scrollbar">
+              {orderedStatuses.map((column, index) => {
+                if (!column) return null;
+                const columnTasks = getColumnTasks(column.id);
+                // Check workflow transitions for all categories
+                const isDropDisabled = draggedTask ? !isValidTransition(draggedTask.status, column.id) : false;
+                // Allow collapse/expand on all pages
+                const isCollapsed = collapsed[column.id] || false;
+                // For status-based categories, use status colors directly
+                const groupColor = shouldShowStatuses(activeCategory) 
+                  ? (statusColorMap[column.id] || "bg-white border-gray-200")
+                  : (statusColorMap[column.id] || "bg-white border-gray-200");
+
+                return (
+                  <Draggable
+                    key={column.id}
+                    draggableId={column.id}
+                    index={index}
+                  >
+                    {(draggableProvided, draggableSnapshot) => (
+                      <div
+                        ref={draggableProvided.innerRef}
+                        {...draggableProvided.draggableProps}
+                        className="kanban-column transition-all duration-200"
+                        data-column-id={column.id}
+                      >
+                        <Droppable
+                          key={column.id}
+                          droppableId={column.id}
+                          isDropDisabled={isDropDisabled}
+                        >
+                          {(droppableProvided, droppableSnapshot) => (
+                            isCollapsed ? (
+                              <div
+                                ref={droppableProvided.innerRef}
+                                {...droppableProvided.droppableProps}
+                                className={`drop-zone flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-[300px] rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${droppableSnapshot.isDraggingOver ? 'drag-over' : ''} ${isDropDisabled && draggedTask ? "drop-disabled" : ""}`}
+                                onClick={() => setCollapsed(c => ({ ...c, [column.id]: false }))}
+                              >
+                                {/* Drag handle for collapsed column - positioned above */}
+                                {shouldShowStatuses(activeCategory) && (
+                                  <div
+                                    {...draggableProvided.dragHandleProps}
+                                    className="absolute -top-1 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab p-1 rounded hover:bg-gray-100 bg-white shadow-sm border border-gray-200"
+                                    title="Drag column"
+                                  >
+                                    <GripVertical className="w-3 h-3 text-gray-400" />
+                                  </div>
+                                )}
+                                  
+                                  <div className="flex flex-col items-center justify-start w-full h-full pt-8 pb-4 group/collapsed group/column-header">
+                                                                                        {(() => {
+                                              const state = findStateByStatus(column.id);
+                                              const columnGroup = getStatusGroup(column.id);
+                                              const groupAbbreviation = getGroupAbbreviation(columnGroup);
+                                              
+                                              // Map status to group display names
+                                              const getGroupDisplayName = (statusId: string) => {
+                                                const statusGroup = getStatusGroup(statusId);
+                                                switch (statusGroup) {
+                                                  case 'CREATED': return 'Created';
+                                                  case 'ACTIVE': return 'Active';
+                                                  case 'PAUSED': return 'Paused';
+                                                  case 'COMPLETED': return 'Completed';
+                                                  case 'REJECTED': return 'Rejected';
+                                                  default: return groupAbbreviation;
+                                                }
+                                              };
+                                              
+                                              // For status-based categories, show status title and available statuses
+                                              const displayTitle = getGroupDisplayName(column.id);
+                                              const statusGroup = getStatusGroup(column.id);
+                                              const availableStatuses = getAvailableStatusesForGroup(statusGroup);
+                                              
+                                              return (
+                                                <div className="flex flex-col items-center gap-1">
+                                                  <span className="font-medium text-xs text-[#1c2024] mb-2 text-center" style={{ writingMode: "vertical-rl", textOrientation: "mixed", letterSpacing: "0.05em" }}>
+                                                    {displayTitle}
+                                                  </span>
+                                                  
+                                                  {/* Show available statuses as small badges */}
+                                                  {availableStatuses.length > 1 && (
+                                                    <div className="flex flex-col gap-1 items-center">
+                                                      {availableStatuses.slice(0, 3).map((status: any) => (
+                                                        <div 
+                                                          key={status.id}
+                                                          className="w-1.5 h-1.5 bg-blue-400 rounded-full opacity-60"
+                                                          title={`Available: ${status.title}`}
+                                                        />
+                                                      ))}
+                                                      {availableStatuses.length > 3 && (
+                                                        <div 
+                                                          className="w-1.5 h-1.5 bg-gray-400 rounded-full opacity-40"
+                                                          title={`+${availableStatuses.length - 3} more statuses`}
+                                                        />
+                                                      )}
+                                                    </div>
+                                                  )}
+
+                                                  {pinnedGroups.has(column.id) && (
+                                                    <div className="w-2 h-2 bg-blue-500 rounded-full" title="Pinned group"></div>
+                                                  )}
+                                                </div>
+                                              );
+                                            })()}
+                                    <div className="flex flex-col items-center gap-2 mb-3">
+                                      <span className="bg-white text-black text-xs font-semibold rounded-xl px-4 py-1 shadow border border-gray-200 text-center">{columnTasks.length}</span>
+                                      {areSomeTasksInColumnSelected(column.id) && (
+                                        <span className={`bg-blue-100 text-blue-700 text-xs font-semibold rounded-xl px-2 py-1 shadow border border-blue-200 transition-opacity ${
+                                          areSomeTasksInColumnSelected(column.id) 
+                                            ? 'opacity-100' 
+                                            : 'opacity-0 group-hover/collapsed:opacity-100'
+                                        }`}>
+                                          {(() => {
+                                            const columnTasks = getColumnTasks(column.id);
+                                            const taskCount = columnTasks.filter(task => selectedTasks.has(task.id)).length;
+                                            const subtaskCount = columnTasks.flatMap(task => 
+                                              task.subtasks ? task.subtasks.filter((subtask: any) => selectedTasks.has(subtask.id)) : []
+                                            ).length;
+                                            return taskCount + subtaskCount;
+                                          })()}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity"
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          setCollapsed(c => ({ ...c, [column.id]: false }));
+                                        }}
+                                        title="Expand group"
+                                      >
+                                        <span className="sr-only">Expand</span>
+                                        <ChevronRight className="w-5 h-5" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity"
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          // Trigger modal open with status
+                                          if (typeof window !== "undefined" && window.dispatchEvent) {
+                                            window.dispatchEvent(new CustomEvent("openCreateTaskModal", { detail: { status: column.id } }));
+                                          }
+                                        }}
+                                        title="Add task"
+                                      >
+                                        <span className="sr-only">Add task</span>
+                                        <span>+</span>
+                                      </Button>
+                                      <Popover 
+                                        open={columnMenuOpen[column.id]} 
+                                        onOpenChange={(open) => setColumnMenuOpen(prev => ({ ...prev, [column.id]: open }))}
+                                      >
+                                        <PopoverTrigger asChild>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity"
+                                            title="More actions"
+                                            onClick={e => { e.stopPropagation(); }}
+                                          >
+                                            <span className="sr-only">More</span>
+                                            <span className="text-xs">...</span>
+                                          </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-48 p-1" align="end">
+                                          <div className="space-y-1">
+                                            <Button
+                                              variant="ghost"
+                                              className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
+                                              onClick={() => {
+                                                setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }));
+                                                setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
+                                              }}
+                                            >
+                                              {collapsed[column.id] ? 'Expand group' : 'Collapse group'}
+                                            </Button>
+                                          </div>
+                                        </PopoverContent>
+                                      </Popover>
+                                    </div>
+                                  </div>
+                                  {provided.placeholder}
+                                </div>
+                              ) : (
+                                <div
+                                  ref={droppableProvided.innerRef}
+                                  {...droppableProvided.droppableProps}
+                                  className={`drop-zone flex flex-col min-w-[320px] max-w-[380px] h-[calc(100vh-160px)] rounded-lg border p-0 transition-all duration-200 relative ${
+                                    groupColor
+                                  } ${
+                                    droppableSnapshot.isDraggingOver ? 'drag-over' : ''
+                                  } ${
+                                    isDropDisabled && draggedTask
+                                      ? "drop-disabled"
+                                      : ""
+                                  }`}
+                                  style={{
+                                    borderWidth: droppableSnapshot.isDraggingOver ? '2px' : '1px',
+                                    borderStyle: 'solid',
+                                  }}
+                                >
+
+                                  <div className="relative group">
+                                    {/* Drag handle for column reordering - positioned above the header */}
+                                    {shouldShowStatuses(activeCategory) && (
+                                      <div
+                                        {...draggableProvided.dragHandleProps}
+                                        className="absolute -top-1 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab p-1 rounded hover:bg-gray-100 bg-white shadow-sm border border-gray-200"
+                                        title="Drag column"
+                                      >
+                                        <GripVertical className="w-3 h-3 text-gray-400" />
+                                      </div>
+                                    )}
+                                    <div className={`flex items-center justify-between mb-0 px-4 pt-3 pb-2 group group-${column.id}`}>
+                                      <div className="flex items-center gap-1 group/header">
+                                        {(() => {
+                                          const state = findStateByStatus(column.id);
+                                          const columnGroup = getStatusGroup(column.id);
+                                          const groupAbbreviation = getGroupAbbreviation(columnGroup);
+                                          
+                                          // Map status to group display names
+                                          const getGroupDisplayName = (statusId: string) => {
+                                            const statusGroup = getStatusGroup(statusId);
+                                            switch (statusGroup) {
+                                              case 'CREATED': return 'Created';
+                                              case 'ACTIVE': return 'Active';
+                                              case 'PAUSED': return 'Paused';
+                                              case 'COMPLETED': return 'Completed';
+                                              case 'REJECTED': return 'Rejected';
+                                              default: return groupAbbreviation;
+                                            }
+                                          };
+                                          
+                                          // For status-based categories, show status title directly
+                                          const displayTitle = shouldShowStatuses(activeCategory) ? column.title : getGroupDisplayName(column.id);
+                                          const displayDescription = shouldShowStatuses(activeCategory) ? groupAbbreviation : "";
+                                          return (
+                                            <div className="flex items-center gap-2 group/column-header">
+                                              <div>
+                                                <h3 className="font-medium text-xs text-[#1c2024]">{displayTitle}</h3>
+                                              </div>
+                                              {pinnedGroups.has(column.id) && (
+                                                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" title="Pinned group"></div>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
+                                        <div className="flex items-center gap-1">
+                                          <Badge className="text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center">{columnTasks.length}</Badge>
+                                                                              {areSomeTasksInColumnSelected(column.id) && (
+                                      <Badge className={`text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center bg-blue-100 text-blue-700 border-blue-200 transition-opacity ${
+                                        areSomeTasksInColumnSelected(column.id) 
+                                          ? 'opacity-100' 
+                                          : 'opacity-0 group-hover/header:opacity-100'
+                                      }`}>
+                                        {(() => {
+                                          const columnTasks = getColumnTasks(column.id);
+                                          const taskCount = columnTasks.filter(task => selectedTasks.has(task.id)).length;
+                                          const subtaskCount = columnTasks.flatMap(task => 
+                                            task.subtasks ? task.subtasks.filter((subtask: any) => selectedTasks.has(subtask.id)) : []
+                                          ).length;
+                                          return taskCount + subtaskCount;
+                                        })()}
+                                      </Badge>
+                                    )}
+                                        </div>
+
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {/* Collapse button */}
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity`}
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            setCollapsed(c => ({ ...c, [column.id]: true }));
+                                          }}
+                                          title="Collapse group"
+                                        >
+                                          <span className="sr-only">Collapse</span>
+                                          <ChevronLeft className="w-4 h-4" />
+                                        </Button>
+                                        {/* Add task button */}
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity`}
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            // Trigger modal open with status
+                                            if (typeof window !== "undefined" && window.dispatchEvent) {
+                                              window.dispatchEvent(new CustomEvent("openCreateTaskModal", { detail: { status: column.id } }));
+                                            }
+                                          }}
+                                          title="Add task"
+                                            >
+                                              <span className="sr-only">Add task</span>
+                                              <span>+</span>
+                                            </Button>
+                                        {/* More button */}
+                                        <Popover 
+                                          open={columnMenuOpen[column.id]} 
+                                          onOpenChange={(open) => setColumnMenuOpen(prev => ({ ...prev, [column.id]: open }))}
+                                        >
+                                          <PopoverTrigger asChild>
+                                            <Button
+                                              size="icon"
+                                              variant="ghost"
+                                              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity`}
+                                              title="More actions"
+                                              onClick={e => { e.stopPropagation(); }}
+                                            >
+                                              <span className="sr-only">More</span>
+                                              <span className="text-xs">...</span>
+                                            </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-48 p-1" align="end">
+                                            <div className="space-y-1">
+                                              <Button
+                                                variant="ghost"
+                                                className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
+                                                onClick={() => {
+                                                  setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }));
+                                                  setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
+                                                }}
+                                              >
+                                                {collapsed[column.id] ? 'Expand group' : 'Collapse group'}
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
+                                                onClick={() => {
+                                                  selectAllTasksInColumn(column.id, true);
+                                                  setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
+                                                  toast.success(`Selected all tasks in ${column.title}`);
+                                                }}
+                                              >
+                                                Select all tasks
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
+                                                onClick={() => {
+                                                  setEditingGroupId(column.id);
+                                                  setNewGroupName(getGroupDisplayName(column.id, column.title));
+                                                  setShowRenameModal(true);
+                                                  setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
+                                                }}
+                                              >
+                                                Rename group
+                                              </Button>
+
+                                              <Button
+                                                variant="ghost"
+                                                className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
+                                                onClick={() => {
+                                                  toggleGroupPin(column.id);
+                                                  setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
+                                                  toast.success(pinnedGroups.has(column.id) ? `Group "${column.title}" is now unpinned` : `Group "${column.title}" is now pinned`);
+                                                }}
+                                              >
+                                                {pinnedGroups.has(column.id) ? "Unpin group" : "Pin group"}
+                                                {pinnedGroups.has(column.id) && (
+                                                  <Badge className="ml-auto text-xs bg-blue-100 text-blue-600">Pinned</Badge>
+                                                )}
+                                              </Button>
+                                            </div>
+                                          </PopoverContent>
+                                        </Popover>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {!collapsed[column.id] && (
+                                    <div className="flex-1 overflow-y-auto px-4 pb-4 hover-scrollbar">
+                                      {columnTasks.length === 0 && (
+                                        <div className="text-xs text-gray-400 flex-1 flex items-center justify-center">No tasks</div>
+                                      )}
+                                      {virtualizationEnabled && columnTasks.length > 50 ? (
+                                        <List
+                                          height={600}
+                                          itemCount={columnTasks.length}
+                                          itemSize={taskCardHeight}
+                                          width="100%"
+                                          itemData={columnTasks}
+                                        >
+                                          {({ index, style, data }) => (
+                                            <div style={{ ...style, paddingBottom: '8px' }}>
+                                              {renderCard(data[index], false, index)}
+                                            </div>
+                                          )}
+                                        </List>
+                                      ) : (
+                                        <div className="space-y-2">
+                                          {columnTasks.map((task: any, idx: number) => {
+                                            // Check if this is a subtask
+                                            if (task.isSubtask) {
+                                              // Render subtask with parent indicator
+                                              return (
+                                                <Draggable key={task.id} draggableId={task.id} index={idx}>
+                                                  {(provided, snapshot) => (
+                                                    <div
+                                                      ref={provided.innerRef}
+                                                      {...provided.draggableProps}
+                                                      className="relative"
+                                                      style={{
+                                                        ...provided.draggableProps.style,
+                                                        transform: provided.draggableProps.style?.transform,
+                                                      }}
+                                                    >
+                                                      <div 
+                                                        className={`kanban-card group border-[#e8e8ec] rounded-2xl w-full cursor-grab bg-white border-l-2 border-l-gray-300 shadow-sm ${
+                                                          snapshot.isDragging 
+                                                            ? 'dragging shadow-xl shadow-black/20 border-blue-300 cursor-grabbing transition-none' 
+                                                            : highlightedSubtasks.has(task.id)
+                                                            ? 'shadow-lg shadow-blue-200 border-blue-300 bg-blue-50'
+                                                            : 'shadow-none hover:shadow-lg hover:shadow-black/15 hover:border-gray-300 transition-all duration-200 ease-out'
+                                                          }`}
+                                                      >
+                                                        {/* Parent task indicator inside card */}
+                                                        <div className="px-3 py-1 bg-gray-100 rounded-t-2xl text-xs text-gray-600 font-medium border-b border-gray-200">
+                                                          Part of: {task.parentTask.title}
+                                                        </div>
+                                                        <div {...provided.dragHandleProps}>
+                                                          {renderSubtaskContent(task, true)}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                </Draggable>
+                                              );
+                                            } else {
+                                              // Render parent task
+                                              const elements = [];
+                                              elements.push(renderCard(task, false, idx));
+                                              
+                                                                                            // Always show subtasks under parent task
+                                              if (task.subtasks && task.subtasks.length > 0) {
+                                                console.log(`✅ ALWAYS SHOWING subtasks for task ${task.id}:`, task.subtasks.length, 'subtasks');
+                                                
+                                                // Add visual separator
+                                                elements.push(
+                                                  <div key={`separator-${task.id}`} className="my-2 border-l-2 border-gray-200 ml-4 h-8"></div>
+                                                );
+                                                
+                                                task.subtasks.forEach((subtask: any, subtaskIdx: number) => {
+                                                  console.log(`Rendering subtask ${subtask.id} under parent ${task.id} with index ${idx + 1 + subtaskIdx}`);
+                                                  // Show all subtasks under parent task for better UX
+                                                  elements.push(
+                                                    <Draggable key={subtask.id} draggableId={subtask.id} index={idx + 1 + subtaskIdx}>
+                                                      {(provided, snapshot) => (
+                                                        <div
+                                                          ref={provided.innerRef}
+                                                          {...provided.draggableProps}
+                                                          className="relative ml-6"
+                                                          style={{
+                                                            ...provided.draggableProps.style,
+                                                            transform: provided.draggableProps.style?.transform,
+                                                          }}
+                                                        >
+                                                          <div 
+                                                            className={`kanban-card group border-[#e8e8ec] rounded-2xl w-full cursor-grab bg-white border-l-2 border-l-gray-300 shadow-sm ${
+                                                              snapshot.isDragging 
+                                                                ? 'dragging shadow-xl shadow-black/20 border-blue-300 cursor-grabbing transition-none' 
+                                                                : highlightedSubtasks.has(subtask.id)
+                                                                ? 'shadow-lg shadow-blue-200 border-blue-300 bg-blue-50'
+                                                                : 'shadow-none hover:shadow-lg hover:shadow-black/15 hover:border-gray-300 transition-all duration-200 ease-out'
+                                                            }`}
+                                                          >
+                                                            {/* Parent task indicator inside card */}
+                                                            <div className="px-3 py-1 bg-gray-100 rounded-t-2xl text-xs text-gray-600 font-medium border-b border-gray-200">
+                                                              Part of: {task.title}
+                                                            </div>
+                                                            <div {...provided.dragHandleProps}>
+                                                              {renderSubtaskContent(subtask, true)}
+                                                            </div>
+                                                          </div>
+                                                        </div>
+                                                      )}
+                                                    </Draggable>
+                                                  );
+                                                });
+                                              } else {
+                                                console.log(`❌ Task ${task.id} has no subtasks. subtasks:`, task.subtasks?.length || 0);
+                                              }
+                                              
+                                              return elements;
+                                            }
+                                          }).flat()}
+                                        </div>
+                                      )}
+                                      {provided.placeholder}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            )}
+                          </Droppable>
+                        </div>
+                      )}
+                    </Draggable>
+                  );
+                })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+      );
+    } else {
+      // Просто map без drag&drop
+      return (
+        <div className="kanban-scrollbar flex gap-3 min-h-[700px] overflow-x-auto horizontal-hover-scrollbar">
+          {orderedStatuses.map((column, index) => {
+            if (!column) return null;
+            const columnTasks = getColumnTasks(column.id);
+            // Check workflow transitions for all categories
+            const isDropDisabled = draggedTask ? !isValidTransition(draggedTask.status, column.id) : false;
+            // Allow collapse/expand on all pages
+            const isCollapsed = collapsed[column.id] || false;
+            // For status-based categories, use status colors directly
+            const groupColor = shouldShowStatuses(activeCategory) 
+              ? (statusColorMap[column.id] || "bg-white border-gray-200")
+              : (statusColorMap[column.id] || "bg-white border-gray-200");
+
+            return (
+              <div
+                key={column.id}
+                className="kanban-column transition-all duration-200"
+                data-column-id={column.id}
+              >
+                    <Droppable
+                      key={column.id}
+                      droppableId={column.id}
+                      isDropDisabled={isDropDisabled}
+                    >
+                      {(provided, snapshot) => (
+                        isCollapsed ? (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={`drop-zone flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-[300px] rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${snapshot.isDraggingOver ? 'drag-over' : ''} ${isDropDisabled && draggedTask ? "drop-disabled" : ""}`}
+                            onClick={() => setCollapsed(c => ({ ...c, [column.id]: false }))}
+                          >
+                            
+                            <div className="flex flex-col items-center justify-start w-full h-full pt-8 pb-4 group/collapsed group/column-header">
+                                                                                          {(() => {
+                                            const state = findStateByStatus(column.id);
+                                            // For status-based categories, show status title directly
+                                            const displayTitle = shouldShowStatuses(activeCategory) ? column.title : (state?.title || column.title);
+                                            return (
+                                              <span className="font-medium text-xs text-[#1c2024] mb-2 text-center" style={{ writingMode: "vertical-rl", textOrientation: "mixed", letterSpacing: "0.05em" }}>
+                                                {displayTitle}
+                                              </span>
+                                            );
+                                          })()}
+                              <div className="flex flex-col items-center gap-2 mb-3">
+                                <span className="bg-white text-black text-xs font-semibold rounded-xl px-4 py-1 shadow border border-gray-200 text-center">{columnTasks.length}</span>
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setCollapsed(c => ({ ...c, [column.id]: false }));
+                                }}
+                                title="Expand group"
+                              >
+                                <span className="sr-only">Expand</span>
+                                <ChevronRight className="w-5 h-5" />
+                              </Button>
+                              <Popover 
+                                open={columnMenuOpen[column.id]} 
+                                onOpenChange={(open) => setColumnMenuOpen(prev => ({ ...prev, [column.id]: open }))}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity"
+                                    title="More actions"
+                                    onClick={e => { e.stopPropagation(); }}
+                                  >
+                                    <span className="sr-only">More</span>
+                                    <span className="text-xs">...</span>
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-48 p-1" align="end">
+                                  <div className="space-y-1">
+                                    <Button
+                                      variant="ghost"
+                                      className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
+                                      onClick={() => {
+                                        setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }));
+                                        setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
+                                      }}
+                                    >
+                                      {collapsed[column.id] ? 'Expand group' : 'Collapse group'}
+                                    </Button>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                            {provided.placeholder}
+                          </div>
+                        ) : (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={`drop-zone flex flex-col min-w-[320px] max-w-[380px] h-[calc(100vh-160px)] rounded-lg border p-0 transition-all duration-200 relative ${
+                              groupColor
+                            } ${
+                              snapshot.isDraggingOver ? 'drag-over' : ''
+                            } ${
+                              isDropDisabled && draggedTask
+                                ? "drop-disabled"
+                                : ""
+                            }`}
+                            style={{
+                              borderWidth: snapshot.isDraggingOver ? '2px' : '1px',
+                              borderStyle: 'solid',
+                            }}
+                          >
+
+                            <div className={`relative group group-${column.id}`}>
+                              <div className="flex items-center justify-between mb-0 px-4 pt-3 pb-2">
+                                <div className="flex items-center gap-1 group/header">
+                                  {(() => {
+                                    const state = findStateByStatus(column.id);
+                                    // For status-based categories, show status title directly
+                                    const displayTitle = shouldShowStatuses(activeCategory) ? column.title : (state?.title || column.title);
+                                    const displayDescription = shouldShowStatuses(activeCategory) ? "" : (state?.description || "");
+                                    return (
+                                      <div>
+                                        <h3 className="font-medium text-xs text-[#1c2024]">{displayTitle}</h3>
+                                        <p className="text-xs text-[#60646c]">{displayDescription}</p>
+                                      </div>
+                                    );
+                                  })()}
+                                  <div className="flex items-center gap-1">
+                                    <Badge className="text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center">{columnTasks.length}</Badge>
+                                    {areSomeTasksInColumnSelected(column.id) && (
+                                      <Badge className={`text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center bg-blue-100 text-blue-700 border-blue-200 transition-opacity ${
+                                        areSomeTasksInColumnSelected(column.id) 
+                                          ? 'opacity-100' 
+                                          : 'opacity-0 group-hover/header:opacity-100'
+                                      }`}>
+                                        {(() => {
+                                          const columnTasks = getColumnTasks(column.id);
+                                          const taskCount = columnTasks.filter(task => selectedTasks.has(task.id)).length;
+                                          const subtaskCount = columnTasks.flatMap(task => 
+                                            task.subtasks ? task.subtasks.filter((subtask: any) => selectedTasks.has(subtask.id)) : []
+                                          ).length;
+                                          return taskCount + subtaskCount;
+                                        })()}
+                                      </Badge>
+                                    )}
+                                  </div>
+
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/group-${column.id}:opacity-100 transition-opacity`}
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      setCollapsed(c => ({ ...c, [column.id]: true }));
+                                    }}
+                                    title="Collapse group"
+                                  >
+                                    <span className="sr-only">Collapse</span>
+                                    <ChevronLeft className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/group-${column.id}:opacity-100 transition-opacity`}
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      // Trigger modal open with status
+                                      if (typeof window !== "undefined" && window.dispatchEvent) {
+                                        window.dispatchEvent(new CustomEvent("openCreateTaskModal", { detail: { status: column.id } }));
+                                      }
+                                    }}
+                                    title="Add task"
+                                  >
+                                    <span className="sr-only">Add task</span>
+                                    <span>+</span>
+                                  </Button>
+                                  <Popover 
+                                    open={columnMenuOpen[column.id]} 
+                                    onOpenChange={(open) => setColumnMenuOpen(prev => ({ ...prev, [column.id]: open }))}
+                                  >
+                                    <PopoverTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/group-${column.id}:opacity-100 transition-opacity`}
+                                        title="More actions"
+                                        onClick={e => { e.stopPropagation(); }}
+                                      >
+                                        <span className="sr-only">More</span>
+                                        <span className="text-xs">...</span>
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-48 p-1" align="end">
+                                      <div className="space-y-1">
+                                        <Button
+                                          variant="ghost"
+                                          className="w-full justify-start text-xs font-normal px-2 py-1.5 h-auto"
+                                          onClick={() => {
+                                            setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }));
+                                            setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
+                                          }}
+                                        >
+                                          {collapsed[column.id] ? 'Expand group' : 'Collapse group'}
+                                        </Button>
+
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
+                              </div>
+                            </div>
+                            {!collapsed[column.id] && (
+                              <div className="flex-1 overflow-y-auto px-4 pb-4 hover-scrollbar">
+                                {columnTasks.length === 0 && (
+                                  <div className="text-xs text-gray-400 flex-1 flex items-center justify-center">No tasks</div>
+                                )}
+                                {virtualizationEnabled && columnTasks.length > 50 ? (
+                                  <List
+                                    height={600}
+                                    itemCount={columnTasks.length}
+                                    itemSize={taskCardHeight}
+                                    width="100%"
+                                    itemData={columnTasks}
+                                  >
+                                    {({ index, style, data }) => (
+                                      <div style={{ ...style, paddingBottom: '8px' }}>
+                                        {renderCard(data[index], false, index)}
+                                      </div>
+                                    )}
+                                  </List>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {columnTasks.map((task: any, idx: number) => {
+                                      // Check if this is a subtask
+                                      const isSubtask = task.isSubtask;
+                                      
+                                      // If this is a subtask, render it with parent indicator
+                                      if (isSubtask) {
+                                        return (
+                                          <div key={task.id}>
+                                            {renderCard(task, isSubtask, idx)}
+                                          </div>
+                                        );
+                                      }
+                                      
+                                      // If this is a parent task, render it normally
+                                      return (
+                                        <div key={task.id}>
+                                          {renderCard(task, isSubtask, idx)}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                {provided.placeholder}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      )}
+                    </Droppable>
+                  </div>
+            );
+          })}
+        </div>
+      );
+    }
+  };
+
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-full w-full relative kanban-board-container">
-        {/* Bulk operations overmenu */}
-        {selectedTasks.size > 0 && (
-          <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-3">
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-gray-700">{selectedTasks.size} selected</span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={bulkArchive}
-                  className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md text-sm font-medium hover:bg-blue-200 transition-colors"
-                >
-                  Archive
-                </button>
-                <button
-                  onClick={bulkUnarchive}
-                  className="px-3 py-1.5 bg-green-100 text-green-700 rounded-md text-sm font-medium hover:bg-green-200 transition-colors"
-                >
-                  Unarchive
-                </button>
-                <button
-                  onClick={bulkDelete}
-                  className="px-3 py-1.5 bg-red-100 text-red-700 rounded-md text-sm font-medium hover:bg-red-200 transition-colors"
-                >
-                  Delete
-                </button>
-              </div>
-              <button
-                onClick={clearSelection}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
+      <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
+        <div className="flex flex-col h-full w-full relative kanban-board-container">
+
 
 
         {/* Quick Filters - Above Metrics */}
-        <div className="px-2 pt-2 pb-2">
+        <div>
           <div className="flex items-center gap-2 mb-2">
             <div className="flex items-center gap-2">
               
@@ -1688,242 +3206,245 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
           </div>
 
           {/* Quick Filter Pills */}
-          <div className="px-6 flex flex-wrap gap-0 mb-2 justify-between -space-x-1">
-
-            <button
-              onClick={() => toggleQuickFilter('assignedToMe')}
-              className={`px-1 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
-                quickFilters.assignedToMe 
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Assigned to me
-              {quickFilters.assignedToMe && (
-                <svg 
-                  className="w-3 h-3 ml-1 cursor-pointer" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleQuickFilter('assignedToMe');
-                  }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </button>
+          <div className="px-6 flex flex-wrap gap-2 mb-2 justify-between -space-x-1">
             
-            <button
-              onClick={() => toggleQuickFilter('createdByMe')}
-              className={`px-1 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
-                quickFilters.createdByMe 
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Created by me
-              {quickFilters.createdByMe && (
-                <svg 
-                  className="w-3 h-3 ml-1 cursor-pointer" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleQuickFilter('createdByMe');
-                  }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </button>
+            {/* Left side - Filter buttons */}
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => toggleQuickFilter('assignedToMe')}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
+                  quickFilters.assignedToMe 
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Assigned to me
+                {quickFilters.assignedToMe && (
+                  <svg 
+                    className="w-3 h-3 ml-1 cursor-pointer" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    onClick={e => {
+                      e.stopPropagation();
+                      toggleQuickFilter('assignedToMe');
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+              
+              <button
+                onClick={() => toggleQuickFilter('createdByMe')}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
+                  quickFilters.createdByMe 
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Created by me
+                {quickFilters.createdByMe && (
+                  <svg 
+                    className="w-3 h-3 ml-1 cursor-pointer" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    onClick={e => {
+                      e.stopPropagation();
+                      toggleQuickFilter('createdByMe');
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+              
+              <button
+                onClick={() => toggleQuickFilter('overdue')}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
+                  quickFilters.overdue 
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Overdue
+                {quickFilters.overdue && (
+                  <svg 
+                    className="w-3 h-3 ml-1 cursor-pointer" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    onClick={e => {
+                      e.stopPropagation();
+                      toggleQuickFilter('overdue');
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+              
+              <button
+                onClick={() => toggleQuickFilter('unassigned')}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
+                  quickFilters.unassigned 
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Unassigned
+                {quickFilters.unassigned && (
+                  <svg 
+                    className="w-3 h-3 ml-1 cursor-pointer" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    onClick={e => {
+                      e.stopPropagation();
+                      toggleQuickFilter('unassigned');
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+              
+              <button
+                onClick={() => toggleQuickFilter('dueSoon')}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
+                  quickFilters.dueSoon 
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Due Soon
+                {quickFilters.dueSoon && (
+                  <svg 
+                    className="w-3 h-3 ml-1 cursor-pointer" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    onClick={e => {
+                      e.stopPropagation();
+                      toggleQuickFilter('dueSoon');
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+              
+              <button
+                onClick={() => toggleQuickFilter('recentlyUpdated')}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
+                  quickFilters.recentlyUpdated 
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Recently Updated
+                {quickFilters.recentlyUpdated && (
+                  <svg 
+                    className="w-3 h-3 ml-1 cursor-pointer" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    onClick={e => {
+                      e.stopPropagation();
+                      toggleQuickFilter('recentlyUpdated');
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+              
+              <button
+                onClick={() => toggleQuickFilter('onHold')}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
+                  quickFilters.onHold 
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                On Hold
+                {quickFilters.onHold && (
+                  <svg 
+                    className="w-3 h-3 ml-1 cursor-pointer" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    onClick={e => {
+                      e.stopPropagation();
+                      toggleQuickFilter('onHold');
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+              
+              <button
+                onClick={() => toggleQuickFilter('highPriority')}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
+                  quickFilters.highPriority 
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                High Priority
+                {quickFilters.highPriority && (
+                  <svg 
+                    className="w-3 h-3 ml-1 cursor-pointer" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    onClick={e => {
+                      e.stopPropagation();
+                      toggleQuickFilter('highPriority');
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+              
+              <button
+                onClick={() => toggleQuickFilter('stalled')}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
+                  quickFilters.stalled 
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Stalled task
+                {quickFilters.stalled && (
+                  <svg 
+                    className="w-3 h-3 ml-1 cursor-pointer" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                    onClick={e => {
+                      e.stopPropagation();
+                      toggleQuickFilter('stalled');
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+            </div>
             
-            <button
-              onClick={() => toggleQuickFilter('overdue')}
-              className={`px-1 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
-                quickFilters.overdue 
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Overdue
-              {quickFilters.overdue && (
-                <svg 
-                  className="w-3 h-3 ml-1 cursor-pointer" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleQuickFilter('overdue');
-                  }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </button>
-            
-            <button
-              onClick={() => toggleQuickFilter('unassigned')}
-              className={`px-1 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
-                quickFilters.unassigned 
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Unassigned
-              {quickFilters.unassigned && (
-                <svg 
-                  className="w-3 h-3 ml-1 cursor-pointer" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleQuickFilter('unassigned');
-                  }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </button>
-            
-            <button
-              onClick={() => toggleQuickFilter('dueSoon')}
-              className={`px-1 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
-                quickFilters.dueSoon 
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Due Soon
-              {quickFilters.dueSoon && (
-                <svg 
-                  className="w-3 h-3 ml-1 cursor-pointer" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleQuickFilter('dueSoon');
-                  }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </button>
-            
-            <button
-              onClick={() => toggleQuickFilter('recentlyUpdated')}
-              className={`px-1 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
-                quickFilters.recentlyUpdated 
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Recently Updated
-              {quickFilters.recentlyUpdated && (
-                <svg 
-                  className="w-3 h-3 ml-1 cursor-pointer" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleQuickFilter('recentlyUpdated');
-                  }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </button>
-            
-            <button
-              onClick={() => toggleQuickFilter('onHold')}
-              className={`px-1 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
-                quickFilters.onHold 
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              On Hold
-              {quickFilters.onHold && (
-                <svg 
-                  className="w-3 h-3 ml-1 cursor-pointer" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleQuickFilter('onHold');
-                  }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </button>
-            
-            <button
-              onClick={() => toggleQuickFilter('highPriority')}
-              className={`px-1 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
-                quickFilters.highPriority 
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              High Priority
-              {quickFilters.highPriority && (
-                <svg 
-                  className="w-3 h-3 ml-1 cursor-pointer" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleQuickFilter('highPriority');
-                  }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </button>
-            
-            <button
-              onClick={() => toggleQuickFilter('stalled')}
-              className={`px-1 py-0.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1 -mr-1 ${
-                quickFilters.stalled 
-                  ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              Stalled task
-              {quickFilters.stalled && (
-                <svg 
-                  className="w-3 h-3 ml-1 cursor-pointer" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleQuickFilter('stalled');
-                  }}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </button>
-            
-            {/* Aging Filter on the right */}
+            {/* Right side - Stalled Filter */}
             <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-gray-700">Aging:</label>
+              <label className="text-xs font-medium text-gray-700">Stalled (per):</label>
               <select
                 value={agingFilter}
                 onChange={(e) => setAgingFilter(e.target.value)}
-                className="text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+                className="text-xs border border-gray-300 rounded pl-2 pr-2 py-1 bg-white"
               >
-                <option value="all">All Tasks</option>
+                <option value="all">Select period</option>
                 <option value="7">7+ Days</option>
                 <option value="14">14+ Days</option>
                 <option value="30">30+ Days</option>
@@ -1937,170 +3458,14 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
           <div className="border-t border-gray-200"></div>
         </div>
 
-        {/* Compact Metrics */}
-        <div className="px-6 mb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{taskMetrics.total}</span>
-                <span className="text-sm text-gray-600">Total</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{taskMetrics.blocked}</span>
-                <span className="text-sm text-gray-600">Blocked</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{taskMetrics.stuck}</span>
-                <span className="text-sm text-gray-600">Stuck</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{taskMetrics.done}</span>
-                <span className="text-sm text-gray-600">Done</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{taskMetrics.validated}</span>
-                <span className="text-sm text-gray-600">Validated</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                <span className="text-base font-semibold text-gray-900">{taskMetrics.doneNotValidated}</span>
-                <span className="text-sm text-gray-600">Not Validated</span>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Divider under metrics */}
-        <div className="px-6 mb-2">
-          <div className="border-t border-gray-200"></div>
-        </div>
 
         {/* Kanban scroll area with padding */}
 
         {/* Kanban scroll area with padding */}
         <div className="flex-1 px-4 pt-4 pb-4">
-          <style>{`
-            .kanban-scrollbar {
-              scrollbar-width: none;
-              -ms-overflow-style: none;
-            }
-            .kanban-scrollbar::-webkit-scrollbar {
-              display: none;
-            }
-            .kanban-scroll-hover .kanban-scrollbar {
-              overflow-x: auto !important;
-              scrollbar-width: thin;
-              scrollbar-color: #d1d5db transparent;
-            }
-            .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar {
-              display: block;
-              height: 8px;
-              background: transparent;
-            }
-            .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar-thumb {
-              background: #d1d5db;
-              border-radius: 8px;
-            }
-            .kanban-scroll-hover .kanban-scrollbar::-webkit-scrollbar-track {
-              background: transparent;
-            }
-            
-            /* Improved drag animations */
-            .kanban-card {
-              transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-              will-change: transform, box-shadow;
-              transform-origin: center;
-              margin-bottom: 8px !important; /* Consistent spacing between cards */
-              margin-top: 0 !important;
-              margin-left: 0 !important;
-              margin-right: 0 !important;
-            }
-            
-            /* Ensure consistent spacing between cards */
-            .kanban-card:last-child {
-              margin-bottom: 0 !important;
-            }
-            
-            /* Ensure consistent spacing for all card containers */
-            [data-rbd-draggable-id] {
-              margin-bottom: 8px !important;
-            }
-            
-            [data-rbd-draggable-id]:last-child {
-              margin-bottom: 0 !important;
-            }
-            
-            /* Ensure subtasks are properly contained within the card */
-            .kanban-card .ml-6 {
-              margin-left: 1.5rem;
-              margin-top: 0.5rem;
-              margin-bottom: 0 !important;
-            }
-            
-            /* Ensure subtasks don't affect main card spacing */
-            .kanban-card .space-y-2 {
-              margin-bottom: 0 !important;
-            }
-            
-            /* Ensure subtasks container doesn't affect spacing */
-            .subtasks-container {
-              margin-bottom: 0 !important;
-              padding-bottom: 0 !important;
-            }
-            
-            /* Ensure individual subtask items don't affect spacing */
-            .subtask-item {
-              margin-bottom: 0.5rem !important;
-            }
-            
-            .subtask-item:last-child {
-              margin-bottom: 0 !important;
-            }
-            
-            /* Ensure subtask cards have proper spacing */
-            .kanban-card .space-y-2 > div {
-              margin-bottom: 0.5rem;
-            }
-            
-            /* Ensure column container has consistent spacing */
-            .kanban-column .drop-zone {
-              gap: 8px !important;
-            }
-            
-            /* Ensure all task containers have consistent spacing */
-            .kanban-column [data-rbd-droppable-id] > div {
-              margin-bottom: 8px !important;
-            }
-            
-            .kanban-column [data-rbd-droppable-id] > div:last-child {
-              margin-bottom: 0 !important;
-            }
-            
-            .kanban-card .space-y-2 > div:last-child {
-              margin-bottom: 0;
-            }
-            
-            .kanban-card:hover {
-              transform: translateY(-0.5px);
-            }
-            
-            .kanban-card.dragging {
-              transform: scale(1.02);
-              box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-              z-index: 99999;
-              pointer-events: none;
-              border: 2px solid rgb(59, 130, 246);
-              opacity: 1 !important;
-              visibility: visible !important;
-              display: block !important;
-            }
-            
-            /* Better drag preview positioning */
+          <style jsx>{`
+            /* Simple drag and drop styles */
             [data-rbd-draggable-id] {
               cursor: grab;
             }
@@ -2109,748 +3474,110 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
               cursor: grabbing;
             }
             
-            /* Ensure drag preview follows cursor accurately */
-            [data-rbd-draggable-context-id] [data-rbd-draggable-id] {
-              transform: none !important;
+            /* Simple card styles */
+            .kanban-card {
+              margin-bottom: 8px;
             }
             
-            /* Ensure drag preview follows cursor exactly */
-            [data-rbd-draggable-id][data-rbd-dragging="true"] {
-              transform: scale(1.02) !important;
-              box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
-              z-index: 99999 !important;
-              transition: none !important;
-              pointer-events: none !important;
-              opacity: 1 !important;
-              visibility: visible !important;
-              position: relative !important;
-              will-change: transform !important;
-            }
-            
-            /* Prevent drag preview from disappearing */
-            [data-rbd-draggable-id][data-rbd-dragging="true"] * {
-              opacity: 1 !important;
-              visibility: visible !important;
-              pointer-events: none !important;
-            }
-            
-            /* Ensure drag preview container is visible */
-            [data-rbd-draggable-context-id] {
-              opacity: 1 !important;
-              visibility: visible !important;
-            }
-            
-            /* Better drag preview positioning - exact cursor following */
-            [data-rbd-draggable-id][data-rbd-dragging="true"] {
-              transform: scale(1.02) !important;
-              box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
-              z-index: 99999 !important;
-              transition: none !important;
-              pointer-events: none !important;
-              opacity: 1 !important;
-              visibility: visible !important;
-              position: fixed !important;
-              will-change: transform !important;
-            }
-            
-            /* Ensure drag preview is positioned exactly at cursor */
-            [data-rbd-draggable-id][data-rbd-dragging="true"] * {
-              pointer-events: none !important;
-              user-select: none !important;
-            }
-            
-            /* Force drag preview to be visible */
-            [data-rbd-draggable-id][data-rbd-dragging="true"] .kanban-card {
-              opacity: 1 !important;
-              visibility: visible !important;
-              display: block !important;
-              position: fixed !important;
-              z-index: 2147483647 !important;
-              top: 0 !important;
-              left: 0 !important;
-            }
-            
-            /* Ensure drag preview is ALWAYS on top of EVERYTHING */
-            [data-rbd-draggable-id][data-rbd-dragging="true"] {
-              position: fixed !important;
-              z-index: 2147483647 !important;
-              pointer-events: none !important;
-              top: 0 !important;
-              left: 0 !important;
-            }
-            
-            /* Force ALL dragged elements to be on top */
-            *[data-rbd-dragging="true"] {
-              z-index: 2147483647 !important;
-              position: fixed !important;
-              top: 0 !important;
-              left: 0 !important;
-            }
-            
-            .kanban-column {
-              transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-            }
-            
-            .kanban-column.dragging {
-              opacity: 0.9;
-              transform: scale(1.01);
-            }
-            
-            /* Smooth drop zone animations */
-            .drop-zone {
-              transition: all 0.05s ease-out;
-              position: relative;
-              min-height: 100px;
-            }
-            
-            /* Jira-style highlighting for valid drop zones */
-            .drop-zone:not(.drop-disabled) {
-              background-color: rgba(59, 130, 246, 0.05);
-              border-color: rgba(59, 130, 246, 0.2);
-            }
-            
+            /* Simple drop zone highlighting */
             .drop-zone.drag-over {
-              background-color: rgba(59, 130, 246, 0.2);
-              border-color: rgb(59, 130, 246);
-              box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
-              transform: scale(1.01);
-            }
-            
-            .drop-zone.drop-disabled {
-              opacity: 0.3;
-              cursor: not-allowed;
-              background-color: rgba(0, 0, 0, 0.05);
-              border-color: rgba(0, 0, 0, 0.1);
-              filter: grayscale(50%);
-            }
-            
-            /* Better drop indicator */
-            .drop-indicator {
-              position: absolute;
-              left: 0;
-              right: 0;
-              height: 2px;
-              background-color: rgb(59, 130, 246);
-              border-radius: 1px;
-              z-index: 10;
-              pointer-events: none;
-            }
-            
-            /* Drop zone hover effect */
-            .drop-zone:hover {
               background-color: rgba(59, 130, 246, 0.1);
             }
             
-            /* Prevent text selection during drag */
-            .dragging * {
-              user-select: none;
-              -webkit-user-select: none;
-              -moz-user-select: none;
-              -ms-user-select: none;
+            /* Simple column styles */
+            .kanban-column {
+              transition: all 0.2s ease;
             }
             
-            /* Fix kanban board during drag */
-            .kanban-board-container.dragging {
-              overflow: hidden !important;
-              pointer-events: none;
+            .drop-zone {
+              position: relative;
+              min-height: 100px;
+              background-color: rgba(59, 130, 246, 0.05);
             }
             
-            /* Ensure drag preview is always visible and follows cursor */
-            .react-beautiful-dnd-dragging {
-              opacity: 1 !important;
-              visibility: visible !important;
-              z-index: 2147483647 !important;
-              pointer-events: none !important;
-              position: fixed !important;
+            /* Light gray background for all column containers */
+            .drop-zone {
+              background-color: rgb(243, 244, 246) !important;
             }
             
-            /* Ensure drag preview follows cursor exactly */
-            [data-rbd-draggable-id][data-rbd-dragging="true"] {
-              position: fixed !important;
-              top: 0 !important;
-              left: 0 !important;
-              transform: translate(var(--x, 0), var(--y, 0)) scale(1.02) !important;
-              pointer-events: none !important;
-              z-index: 2147483647 !important;
-            }
-            
-            /* HIDE the original drag preview completely */
-            [data-rbd-dragging="true"],
-            [data-rbd-draggable-id][data-rbd-dragging="true"],
-            .react-beautiful-dnd-dragging {
-              opacity: 0 !important;
-              visibility: hidden !important;
-              display: none !important;
-              pointer-events: none !important;
-            }
-            
-            /* Show ONLY our custom preview */
-            #custom-drag-preview {
-              z-index: 2147483647 !important;
-              position: fixed !important;
-              top: 0 !important;
-              left: 0 !important;
-              opacity: 1 !important;
-              visibility: visible !important;
-              display: block !important;
-            }
-            
-            /* Force all dragged elements to be visible */
-            *[data-rbd-dragging="true"] {
-              opacity: 1 !important;
-              visibility: visible !important;
-              display: block !important;
-              position: fixed !important;
-              z-index: 2147483647 !important;
-            }
-            
-            /* Ensure drag preview is never hidden */
-            [data-rbd-draggable-id][data-rbd-dragging="true"] * {
-              opacity: 1 !important;
-              visibility: visible !important;
-              display: block !important;
-            }
-            
-            /* Ensure drag preview stays visible during column transitions */
-            [data-rbd-droppable-id] {
-              opacity: 1 !important;
-              visibility: visible !important;
-            }
-            
-            /* Ensure drag preview is always visible regardless of state */
-            [data-rbd-draggable-id] {
-              opacity: 1 !important;
-              visibility: visible !important;
-            }
-            
-            /* Force drag preview to be visible during any drag operation */
-            .react-beautiful-dnd-dragging,
-            [data-rbd-dragging="true"],
-            [data-rbd-draggable-id][data-rbd-dragging="true"] {
-              opacity: 1 !important;
-              visibility: visible !important;
-              display: block !important;
-              position: fixed !important;
-              z-index: 2147483647 !important;
-              pointer-events: none !important;
-            }
-            
-            /* Prevent any element from hiding during drag */
-            *[data-rbd-dragging="true"] {
-              opacity: 1 !important;
-              visibility: visible !important;
-              display: block !important;
-            }
-            
-            /* Force drag preview to be visible */
-            [data-rbd-draggable-id][data-rbd-dragging="true"] {
-              opacity: 1 !important;
-              visibility: visible !important;
-              display: block !important;
-              position: relative !important;
-              z-index: 99999 !important;
-            }
-            
-            /* Ensure drag preview element is visible */
-            [data-rbd-drag-handle-draggable-id] {
-              opacity: 1 !important;
-              visibility: visible !important;
-            }
-            
-            /* Force all drag previews to be visible */
-            [data-rbd-draggable-id] {
-              opacity: 1 !important;
-              visibility: visible !important;
-            }
-            
-            /* Ensure drag preview is positioned correctly */
-            .react-beautiful-dnd-dragging {
-              pointer-events: none !important;
-              z-index: 1000 !important;
-              transition: none !important;
-              transform-origin: center !important;
-            }
-            
-            .kanban-board-container.dragging .kanban-scrollbar {
-              pointer-events: none !important;
-              overflow: hidden !important;
-            }
-            
-            .kanban-board-container.dragging .kanban-column {
-              pointer-events: none;
-            }
-            
-            .kanban-board-container.dragging .kanban-card:not(.dragging) {
-              pointer-events: none;
-            }
-            
-            /* smart-drop-menu: removed Smart Drop Menu CSS styles */
-            
-            /* 7. Dragged card should appear above everything */
-            .kanban-board-container [data-rbd-draggable-id] {
-              z-index: 99999 !important;
-            }
-            
-            /* Ensure dragged card is always on top */
-            .kanban-board-container [data-rbd-draggable-id][data-rbd-draggable-context-id] {
-              z-index: 99999 !important;
-            }
-            
-            /* 8. Force dragged elements to be on top */
-            .kanban-board-container .react-beautiful-dnd-dragging {
-              z-index: 99999 !important;
-            }
-            
-            /* 9. Ensure drag layer is above everything */
-            .kanban-board-container .react-beautiful-dnd-drag-layer {
-              z-index: 99999 !important;
-            }
-            
-            /* 10. Any element being dragged should be on top */
-            .kanban-board-container [data-rbd-draggable-id]:active,
-            .kanban-board-container [data-rbd-draggable-id]:focus {
-              z-index: 99999 !important;
-            }
-            
-            /* 11. Global dragged element styles */
-            *[data-rbd-draggable-id] {
-              z-index: 99999 !important;
-            }
-            
-            /* 12. Ensure dragged elements are above Smart Drop Menu */
-            .kanban-board-container *[data-rbd-draggable-id] {
-              z-index: 99999 !important;
-            }
-            
-            /* 13. Global styles for dragged elements */
-            body *[data-rbd-draggable-id] {
-              z-index: 99999 !important;
-            }
-            
-            /* 14. Force all dragged elements to be on top */
-            [data-rbd-draggable-id] {
-              z-index: 99999 !important;
-            }
-            
-            /* Ensure exact cursor positioning during drag */
-            [data-rbd-draggable-id][data-rbd-dragging="true"] {
-              transform-origin: center !important;
-              transition: none !important;
-              will-change: transform !important;
-              opacity: 1 !important;
-              visibility: visible !important;
-              display: block !important;
-            }
-            
-            /* Ensure drag preview is always visible */
-            .react-beautiful-dnd-dragging {
-              opacity: 1 !important;
-              visibility: visible !important;
-              z-index: 99999 !important;
-            }
-            
-            /* Fix for hanging cards */
 
-            
-                          /* Completely hide placeholder */
-              [data-rbd-placeholder-context-id] {
-                display: none !important;
-                min-height: 0 !important;
-                background: transparent !important;
-                opacity: 0 !important;
-                height: 0 !important;
-                width: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-              }
-            
-            /* Preview zones styling */
-            .preview-zone {
-              position: fixed;
-              z-index: 1001;
-              pointer-events: auto;
-            }
-            
-            .preview-card {
-              transition: all 0.15s ease-out;
-              cursor: pointer;
-            }
-            
-            .preview-card:hover {
-              transform: scale(1.02);
-            }
-            
-            .preview-card.drag-over {
-              background-color: rgba(59, 130, 246, 0.2);
-              border-color: rgb(59, 130, 246);
-              transform: scale(1.05);
-            }
           `}</style>
           <div
             className="group relative kanban-board-container"
             onMouseEnter={e => e.currentTarget.classList.add('kanban-scroll-hover')}
             onMouseLeave={e => e.currentTarget.classList.remove('kanban-scroll-hover')}
           >
-            <DragDropContext 
-              onDragStart={onDragStart} 
-              onDragEnd={onDragEnd}
-              enableDefaultSensors={true}
-            >
-
-              
-              {/* Droppable area for columns */}
-              <Droppable droppableId="board" type="COLUMN" direction="horizontal">
-                {(provided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="kanban-scrollbar flex gap-3 min-h-[700px] overflow-x-auto horizontal-hover-scrollbar"
-                    style={{overflowY: 'hidden', position: 'relative'}}
-                  >
-                    {orderedStatuses.map((column, index) => {
-                      if (!column) return null;
-                      const columnTasks = getColumnTasks(column.id);
-                      // Only disable drop if we have a dragged task and the transition is not valid
-                      const isDropDisabled = draggedTask ? !isValidTransition(draggedTask.status, column.id) : false;
-                      const isCollapsed = collapsed[column.id];
-                      const groupColor = statusColorMap[column.id] || "bg-white border-gray-200";
-
-                      return (
-                        <div
-                          key={column.id}
-                          className="kanban-column transition-all duration-200"
-                          data-column-id={column.id}
-                        >
-                              <Droppable
-                                key={column.id}
-                                droppableId={column.id}
-                                isDropDisabled={isDropDisabled}
-                              >
-                                {(provided, snapshot) => (
-                                  isCollapsed ? (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.droppableProps}
-                                      className={`drop-zone flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-[300px] rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${snapshot.isDraggingOver ? 'drag-over' : ''} ${isDropDisabled && draggedTask ? "drop-disabled" : ""}`}
-                                      onClick={() => setCollapsed(c => ({ ...c, [column.id]: false }))}
-                                    >
-                                      
-                                      <div className="flex flex-col items-center justify-start w-full h-full pt-8 pb-4 group/collapsed">
-                                        {/* Column selection checkbox for collapsed view - visible on hover */}
-                                        {columnTasks.length > 0 && (
-                                          <div className="mb-3">
-                                            <input
-                                              type="checkbox"
-                                              checked={areAllTasksInColumnSelected(column.id)}
-                                              ref={(el) => {
-                                                if (el) {
-                                                  el.indeterminate = areSomeTasksInColumnSelected(column.id) && !areAllTasksInColumnSelected(column.id);
-                                                }
-                                              }}
-                                              onChange={(e) => {
-                                                e.stopPropagation();
-                                                if (areAllTasksInColumnSelected(column.id)) {
-                                                  // Deselect all tasks in this column
-                                                  const columnTaskIds = getColumnTasks(column.id).map(task => task.id);
-                                                  setSelectedTasks(prev => {
-                                                    const newSelected = new Set(prev);
-                                                    columnTaskIds.forEach(id => newSelected.delete(id));
-                                                    return newSelected;
-                                                  });
-                                                } else {
-                                                  // Select all tasks in this column
-                                                  selectAllTasksInColumn(column.id);
-                                                }
-                                              }}
-                                              className={`w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 transition-opacity ${
-                                                areSomeTasksInColumnSelected(column.id) 
-                                                  ? 'opacity-100' 
-                                                  : 'opacity-0 group-hover/collapsed:opacity-100'
-                                              }`}
-                                              title={areAllTasksInColumnSelected(column.id) ? "Deselect all tasks" : "Select all tasks"}
-                                            />
-                                          </div>
-                                        )}
-                                        {(() => {
-                                          const state = findStateByStatus(column.id);
-                                          return (
-                                            <span className="font-medium text-base text-[#1c2024] mb-2 text-center" style={{ writingMode: "vertical-rl", textOrientation: "mixed", letterSpacing: "0.05em" }}>
-                                              {state?.title || column.title}
-                                            </span>
-                                          );
-                                        })()}
-                                        <div className="flex flex-col items-center gap-2 mb-3">
-                                          <span className="bg-white text-black text-base font-semibold rounded-xl px-4 py-1 shadow border border-gray-200 text-center">{columnTasks.length}</span>
-                                          {areSomeTasksInColumnSelected(column.id) && (
-                                            <span className={`bg-blue-100 text-blue-700 text-xs font-semibold rounded-xl px-2 py-1 shadow border border-blue-200 transition-opacity ${
-                                              areSomeTasksInColumnSelected(column.id) 
-                                                ? 'opacity-100' 
-                                                : 'opacity-0 group-hover/collapsed:opacity-100'
-                                            }`}>
-                                              {getColumnTasks(column.id).filter(task => selectedTasks.has(task.id)).length}
-                                            </span>
-                                          )}
-                                        </div>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 hover:opacity-100 transition-opacity"
-                                          onClick={e => {
-                                            e.stopPropagation();
-                                            setCollapsed(c => ({ ...c, [column.id]: false }));
-                                          }}
-                                          title="Expand group"
-                                        >
-                                          <span className="sr-only">Expand</span>
-                                          <ChevronRight className="w-5 h-5" />
-                                        </Button>
-                                      </div>
-                                      {provided.placeholder}
-                                    </div>
-                                  ) : (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.droppableProps}
-                                      className={`drop-zone flex flex-col min-w-[396px] max-w-[496px] h-[calc(100vh-160px)] rounded-lg border p-0 transition-all duration-200 relative ${
-                                        groupColor
-                                      } ${
-                                        snapshot.isDraggingOver ? 'drag-over' : ''
-                                      } ${
-                                        isDropDisabled && draggedTask
-                                          ? "drop-disabled"
-                                          : ""
-                                      }`}
-                                      style={{
-                                        borderWidth: snapshot.isDraggingOver ? '2px' : '1px',
-                                        borderStyle: 'solid',
-                                      }}
-                                    >
-
-                                      <div className="relative group">
-                                        <div className="flex items-center justify-between mb-2 px-4 pt-3 pb-2">
-                                          <div className="flex items-center gap-1 group/header">
-                                            {/* Column selection checkbox - visible on hover */}
-                                            {columnTasks.length > 0 && (
-                                              <div className="flex-shrink-0">
-                                                <input
-                                                  type="checkbox"
-                                                  checked={areAllTasksInColumnSelected(column.id)}
-                                                  ref={(el) => {
-                                                    if (el) {
-                                                      el.indeterminate = areSomeTasksInColumnSelected(column.id) && !areAllTasksInColumnSelected(column.id);
-                                                    }
-                                                  }}
-                                                  onChange={(e) => {
-                                                    e.stopPropagation();
-                                                    if (areAllTasksInColumnSelected(column.id)) {
-                                                      // Deselect all tasks in this column
-                                                      const columnTaskIds = getColumnTasks(column.id).map(task => task.id);
-                                                      setSelectedTasks(prev => {
-                                                        const newSelected = new Set(prev);
-                                                        columnTaskIds.forEach(id => newSelected.delete(id));
-                                                        return newSelected;
-                                                      });
-                                                    } else {
-                                                      // Select all tasks in this column
-                                                      selectAllTasksInColumn(column.id);
-                                                    }
-                                                  }}
-                                                  className={`w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 transition-opacity ${
-                                                    areSomeTasksInColumnSelected(column.id) 
-                                                      ? 'opacity-100' 
-                                                      : 'opacity-0 group-hover/header:opacity-100'
-                                                  }`}
-                                                  title={areAllTasksInColumnSelected(column.id) ? "Deselect all tasks" : "Select all tasks"}
-                                                />
-                                              </div>
-                                            )}
-                                            {(() => {
-                                              const state = findStateByStatus(column.id);
-                                              return (
-                                                <div>
-                                                  <h3 className="font-medium text-base text-[#1c2024]">{state?.title || column.title}</h3>
-                                                  <p className="text-xs text-[#60646c]">{state?.description || ""}</p>
-                                                </div>
-                                              );
-                                            })()}
-                                            <div className="flex items-center gap-1">
-                                              <Badge className="text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center">{columnTasks.length}</Badge>
-                                              {areSomeTasksInColumnSelected(column.id) && (
-                                                <Badge className={`text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center bg-blue-100 text-blue-700 border-blue-200 transition-opacity ${
-                                                  areSomeTasksInColumnSelected(column.id) 
-                                                    ? 'opacity-100' 
-                                                    : 'opacity-0 group-hover/header:opacity-100'
-                                                }`}>
-                                                  {getColumnTasks(column.id).filter(task => selectedTasks.has(task.id)).length}
-                                                </Badge>
-                                              )}
-                                            </div>
-
-                                          </div>
-                                          <div className="flex items-center gap-1 opacity-0 group-hover/header:opacity-100 transition-opacity">
-                                            {/* Collapse button */}
-                                            <Tooltip>
-                                              <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="rounded-full hover:bg-[#e0e2e7] text-gray-400"
-                                                onClick={e => {
-                                                  e.stopPropagation();
-                                                  setCollapsed(c => ({ ...c, [column.id]: true }));
-                                                }}
-                                                title="Collapse group"
-                                              >
-                                                <span className="sr-only">Collapse</span>
-                                                <ChevronLeft className="w-4 h-4" />
-                                              </Button>
-                                            </Tooltip>
-                                            {/* Add task button */}
-                                            {["To do", "In Progress"].includes(column.id) && (
-                                              <Tooltip>
-                                                <Button
-                                                  size="icon"
-                                                  variant="ghost"
-                                                  className="rounded-full hover:bg-[#e0e2e7] text-gray-400"
-                                                  onClick={e => {
-                                                    e.stopPropagation();
-                                                    // Trigger modal open with status
-                                                    if (typeof window !== "undefined" && window.dispatchEvent) {
-                                                      window.dispatchEvent(new CustomEvent("openCreateTaskModal", { detail: { status: column.id } }));
-                                                    }
-                                                  }}
-                                                  title="Add task"
-                                                >
-                                                  <span className="sr-only">Add task</span>
-                                                  <span>+</span>
-                                                </Button>
-                                              </Tooltip>
-                                            )}
-                                            {/* More button */}
-                                            <Popover 
-                                              open={columnMenuOpen[column.id]} 
-                                              onOpenChange={(open) => setColumnMenuOpen(prev => ({ ...prev, [column.id]: open }))}
-                                            >
-                                              <PopoverTrigger asChild>
-                                                <Button
-                                                  size="icon"
-                                                  variant="ghost"
-                                                  className="rounded-full hover:bg-[#e0e2e7] text-gray-400"
-                                                  title="More actions"
-                                                  onClick={e => { e.stopPropagation(); }}
-                                                >
-                                                  <span className="sr-only">More</span>
-                                                  <MoreHorizontal className="w-5 h-5 mx-auto" />
-                                                </Button>
-                                              </PopoverTrigger>
-                                              <PopoverContent className="w-48 p-1" align="end">
-                                                <div className="space-y-1">
-                                                  <Button
-                                                    variant="ghost"
-                                                    className="w-full justify-start text-sm font-normal px-2 py-1.5 h-auto"
-                                                    onClick={() => {
-                                                      setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }));
-                                                      setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
-                                                    }}
-                                                  >
-                                                    {collapsed[column.id] ? 'Expand group' : 'Collapse group'}
-                                                  </Button>
-                                                  <Button
-                                                    variant="ghost"
-                                                    className="w-full justify-start text-sm font-normal px-2 py-1.5 h-auto"
-                                                    onClick={() => {
-                                                      selectAllTasksInColumn(column.id);
-                                                      setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
-                                                      toast.success(`Selected all tasks in ${column.title}`);
-                                                    }}
-                                                  >
-                                                    Select all
-                                                  </Button>
-                                                </div>
-                                              </PopoverContent>
-                                            </Popover>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      {!collapsed[column.id] && (
-                                        <div className="flex-1 overflow-y-auto px-4 pb-4 hover-scrollbar">
-                                          {columnTasks.length === 0 && (
-                                            <div className="text-xs text-gray-400 flex-1 flex items-center justify-center">No tasks</div>
-                                          )}
-                                          {virtualizationEnabled && columnTasks.length > 50 ? (
-                                            <List
-                                              height={600}
-                                              itemCount={columnTasks.length}
-                                              itemSize={taskCardHeight}
-                                              width="100%"
-                                              itemData={columnTasks}
-                                            >
-                                              {({ index, style, data }) => (
-                                                <div style={{ ...style, paddingBottom: '8px' }}>
-                                                  {renderCard(data[index], false, index)}
-                                                </div>
-                                              )}
-                                            </List>
-                                          ) : (
-                                            <div className="space-y-2">
-                                              {columnTasks.map((task: any, idx: number) => {
-                                                const elements = [];
-                                                
-                                                // Add parent task
-                                                elements.push(renderCard(task, false, idx));
-                                                
-                                                // Add subtasks as separate draggable elements if expanded
-                                                if (expandedSubtasks[task.id] && task.subtasks) {
-                                                  task.subtasks.forEach((subtask: any, subtaskIdx: number) => {
-                                                    elements.push(
-                                                      <Draggable key={subtask.id} draggableId={subtask.id} index={idx + 1 + subtaskIdx}>
-                                                        {(provided, snapshot) => (
-                                                          <div
-                                                            ref={provided.innerRef}
-                                                            {...provided.draggableProps}
-                                                            className="relative ml-6"
-                                                            style={provided.draggableProps.style}
-                                                          >
-                                                            <Card 
-                                                              {...provided.dragHandleProps}
-                                                              className={`kanban-card group border-[#e8e8ec] rounded-2xl w-full cursor-grab bg-white border-l-2 border-l-gray-300 shadow-sm ${
-                                                                snapshot.isDragging 
-                                                                  ? 'dragging shadow-xl shadow-black/20 border-blue-300 cursor-grabbing transition-none' 
-                                                                  : 'shadow-none hover:shadow-lg hover:shadow-black/15 hover:border-gray-300 transition-all duration-200 ease-out'
-                                                              }`}
-                                                            >
-                                                              {renderSubtaskContent(subtask)}
-                                                            </Card>
-                                                          </div>
-                                                        )}
-                                                      </Draggable>
-                                                    );
-                                                  });
-                                                }
-                                                
-                                                return elements;
-                                              }).flat()}
-                                            </div>
-                                          )}
-                                          {provided.placeholder}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )
-                                )}
-                              </Droppable>
-                            </div>
-                      );
-                    })}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
+            {renderColumns()}
           </div>
         </div>
       </div>
       
       {/* smart-drop-menu: removed Smart Drop Menu component */}
+      
+      {/* Rename Group Modal */}
+      {showRenameModal && editingGroupId && (
+        <Dialog open={showRenameModal} onOpenChange={setShowRenameModal}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Rename Group</DialogTitle>
+              <DialogDescription>
+                Enter a new name for this group. The change will be applied immediately.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="group-name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="group-name"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  className="col-span-3"
+                  placeholder="Enter group name..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      updateGroupName(editingGroupId, newGroupName);
+                      setShowRenameModal(false);
+                    }
+                    if (e.key === 'Escape') {
+                      setShowRenameModal(false);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowRenameModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  updateGroupName(editingGroupId, newGroupName);
+                  setShowRenameModal(false);
+                }}
+              >
+                Save changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Status Selection Popup */}
+      <StatusSelectionPopup
+        isOpen={statusSelectionPopup.isOpen}
+        onClose={handleStatusSelectionClose}
+        onConfirm={handleStatusSelectionConfirm}
+        availableStatuses={statusSelectionPopup.availableStatuses}
+        taskTitle={statusSelectionPopup.task?.title || ''}
+        fromGroup={getGroupNameByStatus(statusSelectionPopup.fromStatus)}
+        toGroup={getGroupNameByStatus(statusSelectionPopup.toStatus)}
+      />
+        </DragDropContext>
     </TooltipProvider>
   );
 });

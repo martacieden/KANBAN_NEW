@@ -1,0 +1,245 @@
+{
+  "stage_mapping": {
+    "Created": [
+      "draft",
+      "new",
+      "to_do",
+      "requested"
+    ],
+    "Active": [
+      "in_progress",
+      "in_review",
+      "scheduled",
+      "working"
+    ],
+    "Paused": [
+      "paused",
+      "waiting",
+      "on_hold",
+      "blocked"
+    ],
+    "Completed": [
+      "done",
+      "approved",
+      "paid",
+      "completed",
+      "closed"
+    ],
+    "Rejected": [
+      "rejected",
+      "declined",
+      "canceled",
+      "terminated"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "taskId": "BUDG-001",
+      "title": "Budget Planning",
+      "category": "Budget",
+      "status": "in_review",
+      "stage": "Active",
+      "priority": "High",
+      "assignee": { "name": "Marley Bergson", "initials": "MB", "department": "Finance" },
+      "teamMembers": [
+        { "name": "Marley Bergson", "initials": "MB", "avatarUrl": "https://randomuser.me/api/portraits/women/1.jpg" },
+        { "name": "Sarah Chen", "initials": "SC", "avatarUrl": "https://randomuser.me/api/portraits/women/2.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["finance", "planning"],
+      "dueDate": "2024-12-15",
+      "progress": 75,
+      "department": "Finance",
+      "type": "Task",
+      "clientInfo": "Acme Inc.",
+      "description": "Plan and review quarterly budget allocations for all departments.",
+      "attachmentCount": 8,
+      "commentCount": 15,
+      "lastStatusChange": "2024-11-01T10:00:00Z"
+    },
+    {
+      "id": "T2",
+      "taskId": "PHIL-002",
+      "title": "Fundraiser Event",
+      "category": "Philanthropy",
+      "status": "scheduled",
+      "stage": "Active",
+      "priority": "Normal",
+      "assignee": { "name": "Cheyenne Calzoni", "initials": "CC", "department": "Philanthropy" },
+      "teamMembers": [
+        { "name": "Cheyenne Calzoni", "initials": "CC", "avatarUrl": "https://randomuser.me/api/portraits/women/3.jpg" },
+        { "name": "David Kim", "initials": "DK", "avatarUrl": "https://randomuser.me/api/portraits/men/4.jpg" }
+      ],
+      "subtasks": [
+        {
+          "id": "T2.1",
+          "taskId": "PHIL-002-1",
+          "title": "Venue Booking",
+          "status": "in_progress",
+          "category": "Philanthropy",
+          "assignee": { "name": "Cheyenne Calzoni", "initials": "CC", "department": "Philanthropy" },
+          "dueDate": "2024-11-20"
+        }
+      ],
+      "tags": ["event", "fundraising"],
+      "dueDate": "2024-12-20",
+      "progress": 60,
+      "department": "Philanthropy",
+      "type": "Task",
+      "clientInfo": "Stellar Foundation",
+      "description": "Organize annual charity fundraiser event with venue, catering, and entertainment.",
+      "attachmentCount": 12,
+      "commentCount": 23,
+      "lastStatusChange": "2024-11-05T14:30:00Z"
+    },
+    {
+      "id": "T3",
+      "taskId": "LEG-003",
+      "title": "Legal Draft",
+      "category": "Legal",
+      "status": "waiting",
+      "stage": "Paused",
+      "priority": "Normal",
+      "assignee": { "name": "Justin's team", "initials": "JT", "department": "Legal" },
+      "teamMembers": [
+        { "name": "Justin Miller", "initials": "JM", "avatarUrl": "https://randomuser.me/api/portraits/men/5.jpg" },
+        { "name": "Emily Rodriguez", "initials": "ER", "avatarUrl": "https://randomuser.me/api/portraits/women/6.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["legal", "draft"],
+      "dueDate": "2024-11-30",
+      "progress": 40,
+      "department": "Legal",
+      "type": "Task",
+      "clientInfo": "Global Ventures LLC",
+      "description": "Draft legal documents for new partnership agreement.",
+      "attachmentCount": 5,
+      "commentCount": 8,
+      "lastStatusChange": "2024-11-08T09:15:00Z"
+    },
+    {
+      "id": "T4",
+      "taskId": "INV-004",
+      "title": "Investment Research",
+      "category": "Investment",
+      "status": "draft",
+      "stage": "Created",
+      "priority": "High",
+      "assignee": { "name": "Erin George", "initials": "EG", "department": "Investment" },
+      "teamMembers": [
+        { "name": "Erin George", "initials": "EG", "avatarUrl": "https://randomuser.me/api/portraits/women/7.jpg" },
+        { "name": "Michael Thompson", "initials": "MT", "avatarUrl": "https://randomuser.me/api/portraits/men/8.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["research", "investment"],
+      "dueDate": "2024-12-10",
+      "progress": 25,
+      "department": "Investment",
+      "type": "Task",
+      "clientInfo": "TechCorp Solutions",
+      "description": "Research potential investment opportunities in emerging markets.",
+      "attachmentCount": 15,
+      "commentCount": 18,
+      "lastStatusChange": "2024-11-10T16:45:00Z"
+    },
+    {
+      "id": "T5",
+      "taskId": "TRAV-005",
+      "title": "Travel Booking",
+      "category": "Travel",
+      "status": "done",
+      "stage": "Completed",
+      "priority": "Normal",
+      "assignee": { "name": "Travel Team", "initials": "TT", "department": "Operations" },
+      "teamMembers": [
+        { "name": "Travel Coordinator", "initials": "TC", "avatarUrl": "https://randomuser.me/api/portraits/women/9.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["travel", "booking"],
+      "dueDate": "2024-11-15",
+      "progress": 100,
+      "department": "Operations",
+      "type": "Task",
+      "clientInfo": "Acme Inc.",
+      "description": "Book business travel arrangements for executive team.",
+      "attachmentCount": 3,
+      "commentCount": 5,
+      "lastStatusChange": "2024-11-12T11:20:00Z"
+    },
+    {
+      "id": "T6",
+      "taskId": "FOOD-006",
+      "title": "Menu Planning",
+      "category": "Food",
+      "status": "approved",
+      "stage": "Completed",
+      "priority": "Low",
+      "assignee": { "name": "Catering Team", "initials": "CT", "department": "Operations" },
+      "teamMembers": [
+        { "name": "Chef Maria", "initials": "CM", "avatarUrl": "https://randomuser.me/api/portraits/women/10.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["food", "menu"],
+      "dueDate": "2024-11-25",
+      "progress": 100,
+      "department": "Operations",
+      "type": "Task",
+      "clientInfo": "Stellar Foundation",
+      "description": "Plan catering menu for upcoming corporate events.",
+      "attachmentCount": 6,
+      "commentCount": 12,
+      "lastStatusChange": "2024-11-20T13:30:00Z"
+    },
+    {
+      "id": "T7",
+      "taskId": "HR-007",
+      "title": "Candidate Interview",
+      "category": "HR",
+      "status": "rejected",
+      "stage": "Rejected",
+      "priority": "Normal",
+      "assignee": { "name": "Giana Levin", "initials": "GL", "department": "HR" },
+      "teamMembers": [
+        { "name": "Giana Levin", "initials": "GL", "avatarUrl": "https://randomuser.me/api/portraits/women/11.jpg" },
+        { "name": "HR Partner", "initials": "HP", "avatarUrl": "https://randomuser.me/api/portraits/men/12.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["hr", "interview"],
+      "dueDate": "2024-11-18",
+      "progress": 100,
+      "department": "HR",
+      "type": "Task",
+      "clientInfo": "TechCorp Solutions",
+      "description": "Conduct final interview for senior position candidate.",
+      "attachmentCount": 4,
+      "commentCount": 7,
+      "lastStatusChange": "2024-11-15T15:45:00Z"
+    },
+    {
+      "id": "T8",
+      "taskId": "ACC-008",
+      "title": "Monthly Accounting",
+      "category": "Accounting",
+      "status": "to_do",
+      "stage": "Created",
+      "priority": "High",
+      "assignee": { "name": "Sarah Mitchell", "initials": "SM", "department": "Finance" },
+      "teamMembers": [
+        { "name": "Sarah Mitchell", "initials": "SM", "avatarUrl": "https://randomuser.me/api/portraits/women/13.jpg" },
+        { "name": "Accountant Helen", "initials": "AH", "avatarUrl": "https://randomuser.me/api/portraits/women/14.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["accounting", "monthly"],
+      "dueDate": "2024-11-30",
+      "progress": 0,
+      "department": "Finance",
+      "type": "Task",
+      "clientInfo": "Metropolitan Holdings",
+      "description": "Complete monthly accounting reconciliation and reporting.",
+      "attachmentCount": 10,
+      "commentCount": 14,
+      "lastStatusChange": "2024-11-01T08:00:00Z"
+    }
+  ]
+} 
