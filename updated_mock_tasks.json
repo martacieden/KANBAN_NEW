@@ -61,15 +61,6 @@
           "category": "Budget",
           "assignee": { "name": "Marley Bergson", "initials": "MB", "department": "Finance" },
           "dueDate": "2024-12-15"
-        },
-        {
-          "id": "BGT-001-2",
-          "taskId": "BGT-001-2",
-          "title": "Finalize Executive Summary",
-          "status": "to_do",
-          "category": "Budget",
-          "assignee": { "name": "Sarah Chen", "initials": "SC", "department": "Finance" },
-          "dueDate": "2024-12-20"
         }
       ],
       "tags": ["budget", "planning", "quarterly"],
@@ -82,6 +73,81 @@
       "attachmentCount": 8,
       "commentCount": 12,
       "lastStatusChange": "2024-11-20T09:00:00Z"
+    },
+    {
+      "id": "BGT-002",
+      "taskId": "BGT-002",
+      "title": "Review Q3 Budget Performance",
+      "category": "Budget",
+      "status": "in_progress",
+      "stage": "Active",
+      "priority": "Normal",
+      "assignee": { "name": "Sarah Chen", "initials": "SC", "department": "Finance" },
+      "teamMembers": [
+        { "name": "Sarah Chen", "initials": "SC", "avatarUrl": "https://randomuser.me/api/portraits/women/2.jpg" },
+        { "name": "Marley Bergson", "initials": "MB", "avatarUrl": "https://randomuser.me/api/portraits/women/1.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["budget", "review", "quarterly"],
+      "dueDate": "2024-12-15",
+      "progress": 60,
+      "department": "Finance",
+      "type": "Task",
+      "clientInfo": "Internal",
+      "description": "Review and analyze Q3 budget performance against targets and prepare variance reports.",
+      "attachmentCount": 5,
+      "commentCount": 8,
+      "lastStatusChange": "2024-11-25T14:20:00Z"
+    },
+    {
+      "id": "BGT-003",
+      "taskId": "BGT-003",
+      "title": "Forecast Q1 2025 Budget",
+      "category": "Budget",
+      "status": "approved",
+      "stage": "Completed",
+      "priority": "High",
+      "assignee": { "name": "Marley Bergson", "initials": "MB", "department": "Finance" },
+      "teamMembers": [
+        { "name": "Marley Bergson", "initials": "MB", "avatarUrl": "https://randomuser.me/api/portraits/women/1.jpg" },
+        { "name": "Sarah Chen", "initials": "SC", "avatarUrl": "https://randomuser.me/api/portraits/women/2.jpg" },
+        { "name": "Finance Analyst", "initials": "FA", "avatarUrl": "https://randomuser.me/api/portraits/men/4.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["budget", "forecast", "planning"],
+      "dueDate": "2024-12-31",
+      "progress": 100,
+      "department": "Finance",
+      "type": "Task",
+      "clientInfo": "Internal",
+      "description": "Create comprehensive Q1 2025 budget forecast including revenue projections, expense planning, and resource allocation.",
+      "attachmentCount": 12,
+      "commentCount": 15,
+      "lastStatusChange": "2024-12-01T10:30:00Z"
+    },
+    {
+      "id": "BGT-004",
+      "taskId": "BGT-004",
+      "title": "Department Budget Allocation",
+      "category": "Budget",
+      "status": "rejected",
+      "stage": "Rejected",
+      "priority": "Normal",
+      "assignee": { "name": "Sarah Chen", "initials": "SC", "department": "Finance" },
+      "teamMembers": [
+        { "name": "Sarah Chen", "initials": "SC", "avatarUrl": "https://randomuser.me/api/portraits/women/2.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["budget", "allocation", "departments"],
+      "dueDate": "2024-12-10",
+      "progress": 0,
+      "department": "Finance",
+      "type": "Task",
+      "clientInfo": "Internal",
+      "description": "Review and allocate budgets for all departments based on strategic priorities and available resources.",
+      "attachmentCount": 8,
+      "commentCount": 10,
+      "lastStatusChange": "2024-11-28T16:45:00Z"
     },
     {
       "id": "INV-002",

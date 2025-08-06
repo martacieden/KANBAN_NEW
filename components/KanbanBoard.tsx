@@ -898,7 +898,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [expandedSubtasks, setExpandedSubtasks] = useState<Record<string, boolean>>({});
   const [highlightedSubtasks, setHighlightedSubtasks] = useState<Set<string>>(new Set());
-  const [columnMenuOpen, setColumnMenuOpen] = useState<Record<string, boolean>>({});
+
   
   // smart-drop-menu: removed Smart Drop Menu states
   
@@ -1526,70 +1526,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     });
     console.log(`Parent tasks in status ${status}: ${parentTasksInStatus.length}`);
 
-    // Get all subtasks that belong to the same group/status
-    const subtasksInStatus: any[] = [];
-    
-    // Only show subtasks as separate elements when they are in a different status than their parent
-    // and when the parent task is not in the same column
-    filteredTasks.forEach(parentTask => {
-      if (parentTask.subtasks) {
-        parentTask.subtasks.forEach((subtask: any) => {
-          let subtaskMatches;
-          if (activeCategory === "All tasks") {
-            // On "All tasks" page, filter subtasks by status group
-            const subtaskGroup = getStatusGroup(subtask.status);
-            subtaskMatches = subtaskGroup === statusGroup;
-          } else {
-            // On category pages, filter subtasks by exact status match
-            subtaskMatches = subtask.status === status;
-          }
-          
-          if (subtaskMatches) {
-            // Check if parent task is also in the same column
-            const parentTaskInSameColumn = parentTasksInStatus.some(pt => pt.id === parentTask.id);
-            
-            // Only show subtask as separate item if parent is NOT in the same column
-            // This prevents duplicate rendering
-            if (!parentTaskInSameColumn) {
-              // Special logic for "Created" column on "All Tasks" view
-              if (activeCategory === "All tasks" && statusGroup === "CREATED") {
-                // In "Created" column, NEVER show subtasks as separate cards
-                // They should only appear when parent task is expanded
-                console.log(`Hiding subtask ${subtask.id} in "Created" column - subtasks should always stay with parent`);
-                return; // Skip this subtask
-              }
-              
-              // For category-specific pages, ensure subtask belongs to the correct category
-              if (activeCategory !== "All tasks" && parentTask.category !== activeCategory) {
-                console.log(`Hiding subtask ${subtask.id} - parent task category (${parentTask.category}) doesn't match active category (${activeCategory})`);
-                return; // Skip this subtask
-              }
-              
-              // Add parent task info to subtask for display
-              const subtaskWithParent = {
-                ...subtask,
-                parentTask: {
-                  id: parentTask.id,
-                  title: parentTask.title,
-                  taskId: parentTask.taskId,
-                  category: parentTask.category,
-                  status: parentTask.status // Include parent status for business logic validation
-                },
-                isSubtask: true
-              };
-              subtasksInStatus.push(subtaskWithParent);
-              console.log(`Found subtask: ${subtask.id} (${subtask.title}) with status ${subtask.status} in group ${getStatusGroup(subtask.status)}`);
-            } else {
-              console.log(`Hiding subtask ${subtask.id} - parent task ${parentTask.id} is in the same column`);
-            }
-          }
-        });
-      }
-    });
-    console.log(`Subtasks in status ${status}: ${subtasksInStatus.length}`);
-
-    // Combine parent tasks and subtasks
-    tasksInColumn = [...parentTasksInStatus, ...subtasksInStatus];
+    // No subtasks - only show parent tasks
+    tasksInColumn = parentTasksInStatus;
     console.log(`Total tasks in column ${status}: ${tasksInColumn.length}`);
 
     // Debug logging for category pages
@@ -2708,37 +2646,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                         <span className="sr-only">Add task</span>
                                         <span>+</span>
                                       </Button>
-                                      <Popover 
-                                        open={columnMenuOpen[column.id]} 
-                                        onOpenChange={(open) => setColumnMenuOpen(prev => ({ ...prev, [column.id]: open }))}
-                                      >
-                                        <PopoverTrigger asChild>
-                                          <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity"
-                                            title="More actions"
-                                            onClick={e => { e.stopPropagation(); }}
-                                          >
-                                            <span className="sr-only">More</span>
-                                            <span className="text-xs">...</span>
-                                          </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-48 p-1" align="end">
-                                          <div className="space-y-1">
-                                            <Button
-                                              variant="ghost"
-                                              className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
-                                              onClick={() => {
-                                                setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }));
-                                                setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
-                                              }}
-                                            >
-                                              {collapsed[column.id] ? 'Expand group' : 'Collapse group'}
-                                            </Button>
-                                          </div>
-                                        </PopoverContent>
-                                      </Popover>
+
                                     </div>
                                   </div>
                                   {provided.placeholder}
@@ -2924,62 +2832,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                                 </Draggable>
                                               );
                                             } else {
-                                              // Render parent task
-                                              const elements = [];
-                                              elements.push(renderCard(task, false, idx));
-                                              
-                                                                                            // Always show subtasks under parent task
-                                              if (task.subtasks && task.subtasks.length > 0) {
-                                                console.log(`✅ ALWAYS SHOWING subtasks for task ${task.id}:`, task.subtasks.length, 'subtasks');
-                                                
-                                                // Add visual separator
-                                                elements.push(
-                                                  <div key={`separator-${task.id}`} className="my-2 border-l-2 border-gray-200 ml-4 h-8"></div>
-                                                );
-                                                
-                                                task.subtasks.forEach((subtask: any, subtaskIdx: number) => {
-                                                  console.log(`Rendering subtask ${subtask.id} under parent ${task.id} with index ${idx + 1 + subtaskIdx}`);
-                                                  // Show all subtasks under parent task for better UX
-                                                  elements.push(
-                                                    <Draggable key={subtask.id} draggableId={subtask.id} index={idx + 1 + subtaskIdx}>
-                                                      {(provided, snapshot) => (
-                                                        <div
-                                                          ref={provided.innerRef}
-                                                          {...provided.draggableProps}
-                                                          className="relative ml-6"
-                                                          data-task-id={subtask.id}
-                                                          style={{
-                                                            ...provided.draggableProps.style,
-                                                            transform: provided.draggableProps.style?.transform,
-                                                          }}
-                                                        >
-                                                          <div 
-                                                            className={`kanban-card group border-[#e8e8ec] rounded-2xl w-full cursor-grab bg-white border-l-2 border-l-gray-300 shadow-sm ${
-                                                              snapshot.isDragging 
-                                                                ? 'dragging shadow-xl shadow-black/20 border-blue-300 cursor-grabbing transition-none' 
-                                                                : highlightedSubtasks.has(subtask.id)
-                                                                ? 'shadow-lg shadow-blue-200 border-blue-300 bg-blue-50'
-                                                                : 'shadow-none hover:shadow-lg hover:shadow-black/15 hover:border-gray-300 transition-all duration-200 ease-out'
-                                                            }`}
-                                                          >
-                                                            {/* Parent task indicator inside card */}
-                                                            <div className="px-3 py-1 bg-gray-100 rounded-t-2xl text-xs text-gray-600 font-medium border-b border-gray-200">
-                                                              Part of: {task.title}
-                                                            </div>
-                                                            <div {...provided.dragHandleProps}>
-                                                              {renderSubtaskContent(subtask, true)}
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      )}
-                                                    </Draggable>
-                                                  );
-                                                });
-                                              } else {
-                                                console.log(`❌ Task ${task.id} has no subtasks. subtasks:`, task.subtasks?.length || 0);
-                                              }
-                                              
-                                              return elements;
+                                              // Render parent task only (no subtasks)
+                                              return renderCard(task, false, idx);
                                             }
                                           }).flat()}
                                         </div>
@@ -3064,37 +2918,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                 <span className="sr-only">Expand</span>
                                 <ChevronRight className="w-5 h-5" />
                               </Button>
-                              <Popover 
-                                open={columnMenuOpen[column.id]} 
-                                onOpenChange={(open) => setColumnMenuOpen(prev => ({ ...prev, [column.id]: open }))}
-                              >
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="rounded-full hover:bg-[#e0e2e7] text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity"
-                                    title="More actions"
-                                    onClick={e => { e.stopPropagation(); }}
-                                  >
-                                    <span className="sr-only">More</span>
-                                    <span className="text-xs">...</span>
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-48 p-1" align="end">
-                                  <div className="space-y-1">
-                                    <Button
-                                      variant="ghost"
-                                      className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
-                                      onClick={() => {
-                                        setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }));
-                                        setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
-                                      }}
-                                    >
-                                      {collapsed[column.id] ? 'Expand group' : 'Collapse group'}
-                                    </Button>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
+
                             </div>
                             {provided.placeholder}
                           </div>
@@ -3183,38 +3007,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                     <span className="sr-only">Add task</span>
                                     <span>+</span>
                                   </Button>
-                                  <Popover 
-                                    open={columnMenuOpen[column.id]} 
-                                    onOpenChange={(open) => setColumnMenuOpen(prev => ({ ...prev, [column.id]: open }))}
-                                  >
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 invisible group-hover:visible transition-all duration-200`}
-                                        title="More actions"
-                                        onClick={e => { e.stopPropagation(); }}
-                                      >
-                                        <span className="sr-only">More</span>
-                                        <span className="text-xs">...</span>
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-48 p-1" align="end">
-                                      <div className="space-y-1">
-                                        <Button
-                                          variant="ghost"
-                                          className="w-full justify-start text-xs font-normal px-2 py-1.5 h-auto"
-                                          onClick={() => {
-                                            setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }));
-                                            setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
-                                          }}
-                                        >
-                                          {collapsed[column.id] ? 'Expand group' : 'Collapse group'}
-                                        </Button>
 
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
                                 </div>
                               </div>
                             </div>

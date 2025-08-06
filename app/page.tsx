@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Sidebar from "../components/sidebar";
 import TopBar from "../components/topbar";
 import KanbanBoard, { initialTasks as kanbanInitialTasks } from "../components/KanbanBoard";
+import CategoryKanbanBoard from "../components/CategoryKanbanBoard";
 import { Plus, ChevronDown, ChevronRight, Filter, Settings, Share, Bell, Search, List, Kanban, Layers, ChevronUp, Flag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Paperclip, User, Share as ShareIcon, Copy, Archive, Users, Shield, FileText, X } from "lucide-react";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import TaskPreview from "../components/TaskPreview";
+import { Task, ColumnField, CardFields, ColumnWidths, TaskCategory } from "../types";
 
 // Функція для генерації унікального кольору на основі тексту
 function generateColorFromText(text: string): string {
@@ -47,7 +49,7 @@ function generateColorFromText(text: string): string {
 export default function Page() {
   // Define fields for Kanban cards
   const KANBAN_CARD_FIELDS = [
-    { key: "name", label: "Name", pinned: true },
+    { key: "title", label: "Name", pinned: true },
     { key: "status", label: "Status", pinned: true },
     { key: "divider", label: "divider", pinned: false },
     { key: "taskId", label: "ID", pinned: false },
@@ -83,15 +85,15 @@ export default function Page() {
     const fields = view === 'kanban' ? KANBAN_CARD_FIELDS : TABLE_COLUMN_FIELDS;
     // Sort fields to put "Name" first
     return fields.sort((a, b) => {
-      if (a.key === 'name' || a.key === 'title') return -1;
-      if (b.key === 'name' || b.key === 'title') return 1;
+      if (a.key === 'title') return -1;
+      if (b.key === 'title') return 1;
       return 0;
     });
   };
   
   // State for cardFields
-  const [cardFields, setCardFields] = useState<Record<string, boolean>>(() => {
-    const obj: Record<string, boolean> = {};
+  const [cardFields, setCardFields] = useState<CardFields>(() => {
+    const obj: CardFields = {};
     // Initialize with all possible fields from both lists
     [...KANBAN_CARD_FIELDS, ...TABLE_COLUMN_FIELDS].forEach(f => {
       // Show all fields by default except Tags, Description, and divider
@@ -140,11 +142,11 @@ export default function Page() {
     return () => window.removeEventListener("openCreateTaskModal", handler);
   }, []);
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
-  const [selectedTask, setSelectedTask] = useState<any | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeMenu, setActiveMenu] = useState('Tasks');
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>({
     checkbox: 40,
     title: 300,
     priority: 120,
@@ -443,17 +445,26 @@ export default function Page() {
                   </div>
                 </div>
               </div>
-              {/* Pass cardFields and setCardFields to KanbanBoard */}
+              {/* Render appropriate Kanban board based on category */}
               {view === 'kanban' ? (
-                <KanbanBoard
-                  showSettings={showSettings}
-                  setShowSettings={setShowSettings}
-                  cardFields={cardFields}
-                  setCardFields={setCardFields}
-                  onTaskClick={setSelectedTask}
-                  onFiltersChange={updateFiltersCount}
-                  activeCategory={activeCategory}
-                />
+                activeCategory === "All tasks" ? (
+                  <KanbanBoard
+                    showSettings={showSettings}
+                    setShowSettings={setShowSettings}
+                    cardFields={cardFields}
+                    setCardFields={setCardFields}
+                    onTaskClick={setSelectedTask}
+                    onFiltersChange={updateFiltersCount}
+                    activeCategory={activeCategory}
+                  />
+                ) : (
+                  <CategoryKanbanBoard
+                    category={activeCategory}
+                    tasks={kanbanInitialTasks}
+                    onTaskClick={setSelectedTask}
+                    onTaskUpdate={handleTaskUpdate}
+                  />
+                )
               ) : (
                 <div className="flex-1 flex flex-col min-h-0">
                   {/* Actions panel when tasks are selected */}
@@ -499,7 +510,7 @@ export default function Page() {
                   )}
                   <div className="flex-1 overflow-hidden">
                     <TaskTable
-                      tasks={kanbanInitialTasks}
+                      tasks={activeCategory === "All tasks" ? kanbanInitialTasks : kanbanInitialTasks.filter(task => task.category === activeCategory)}
                       cardFields={cardFields}
                       onTaskClick={setSelectedTask}
                       onTaskUpdate={handleTaskUpdate}

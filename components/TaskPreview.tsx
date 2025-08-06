@@ -48,8 +48,8 @@ interface Subtask {
   taskId: string;
   title: string;
   status: string;
-  assignee: Assignee;
-  dueDate: string;
+  assignee?: Assignee;
+  dueDate?: string;
 }
 
 export interface Task {
@@ -58,7 +58,7 @@ export interface Task {
   title: string;
   priority: string;
   category: string;
-  assignee: Assignee;
+  assignee?: Assignee;
   subtasks?: Subtask[];
   tags?: string[];
   dueDate?: string;
@@ -172,16 +172,18 @@ export const TaskPreview: React.FC<TaskPreviewProps> = ({ task, onClose }) => {
                     <span>Jane Smith</span>
                   </div>
                 </div>
-                <div>
-                  <div className="text-[#8b8d98]">Assignee</div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Avatar className="w-6 h-6">
-                      <AvatarImage src={task.assignee.avatarUrl || "https://randomuser.me/api/portraits/men/32.jpg"} />
-                      <AvatarFallback className="text-xs bg-gray-100">{task.assignee.initials}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-[13px] font-normal leading-5 text-[#1c2024]">{task.assignee.name}</span>
+                {task.assignee && (
+                  <div>
+                    <div className="text-[#8b8d98]">Assignee</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Avatar className="w-6 h-6">
+                        <AvatarImage src={task.assignee.avatarUrl || "https://randomuser.me/api/portraits/men/32.jpg"} />
+                        <AvatarFallback className="text-xs bg-gray-100">{task.assignee.initials}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-[13px] font-normal leading-5 text-[#1c2024]">{task.assignee.name}</span>
+                    </div>
                   </div>
-                </div>
+                )}
                 <div>
                   <div className="text-[#8b8d98]">Due date</div>
                   <div className="mt-1">Nov 10, 2024</div>
@@ -275,12 +277,14 @@ export const TaskPreview: React.FC<TaskPreviewProps> = ({ task, onClose }) => {
                         >
                           {subtask.status}
                         </Badge>
-                        <Avatar className="w-6 h-6">
-                          <AvatarImage src={subtask.assignee.avatarUrl || "https://randomuser.me/api/portraits/men/32.jpg"} />
-                          <AvatarFallback className="text-xs bg-gray-100">
-                            {subtask.assignee.initials}
-                          </AvatarFallback>
-                        </Avatar>
+                        {subtask.assignee && (
+                          <Avatar className="w-6 h-6">
+                            <AvatarImage src={subtask.assignee.avatarUrl || "https://randomuser.me/api/portraits/men/32.jpg"} />
+                            <AvatarFallback className="text-xs bg-gray-100">
+                              {subtask.assignee.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
                       </div>
                     </div>
                   ))}
