@@ -655,6 +655,7 @@ const getMainStatuses = () => {
     { id: "backlog", title: "Backlog", color: "bg-gray-100 text-gray-700", group: "CREATED" },
     { id: "to_do", title: "To Do", color: "bg-gray-100 text-gray-700", group: "CREATED" },
     { id: "new", title: "New", color: "bg-gray-100 text-gray-700", group: "CREATED" },
+    { id: "requested", title: "Requested", color: "bg-gray-100 text-gray-700", group: "CREATED" },
     
     // ACTIVE - In progress, working, under review
     { id: "in_progress", title: "In Progress", color: "bg-blue-100 text-blue-700", group: "ACTIVE" },
@@ -662,22 +663,30 @@ const getMainStatuses = () => {
     { id: "ongoing", title: "Ongoing", color: "bg-blue-100 text-blue-700", group: "ACTIVE" },
     { id: "doing", title: "Doing", color: "bg-blue-100 text-blue-700", group: "ACTIVE" },
     { id: "assigned", title: "Assigned", color: "bg-blue-100 text-blue-700", group: "ACTIVE" },
+    { id: "in_review", title: "In Review", color: "bg-blue-100 text-blue-700", group: "ACTIVE" },
+    { id: "scheduled", title: "Scheduled", color: "bg-blue-100 text-blue-700", group: "ACTIVE" },
     
     // PAUSED - Blocked, on hold, needs work
     { id: "blocked", title: "Blocked", color: "bg-yellow-100 text-yellow-700", group: "PAUSED" },
     { id: "needs_input", title: "Needs Input", color: "bg-yellow-100 text-yellow-700", group: "PAUSED" },
     { id: "needs_work", title: "Needs Work", color: "bg-yellow-100 text-yellow-700", group: "PAUSED" },
     { id: "on_hold", title: "On Hold", color: "bg-yellow-100 text-yellow-700", group: "PAUSED" },
+    { id: "paused", title: "Paused", color: "bg-yellow-100 text-yellow-700", group: "PAUSED" },
+    { id: "waiting", title: "Waiting", color: "bg-yellow-100 text-yellow-700", group: "PAUSED" },
     
     // COMPLETED - Done, validated, approved
     { id: "done", title: "Done", color: "bg-green-100 text-green-700", group: "COMPLETED" },
     { id: "approved", title: "Approved", color: "bg-green-100 text-green-700", group: "COMPLETED" },
     { id: "validated", title: "Validated", color: "bg-green-100 text-green-700", group: "COMPLETED" },
+    { id: "paid", title: "Paid", color: "bg-green-100 text-green-700", group: "COMPLETED" },
+    { id: "completed", title: "Completed", color: "bg-green-100 text-green-700", group: "COMPLETED" },
     
     // REJECTED - Rejected, cancelled, failed
     { id: "rejected", title: "Rejected", color: "bg-red-100 text-red-700", group: "REJECTED" },
     { id: "canceled", title: "Canceled", color: "bg-red-100 text-red-700", group: "REJECTED" },
     { id: "closed", title: "Closed", color: "bg-red-100 text-red-700", group: "REJECTED" },
+    { id: "declined", title: "Declined", color: "bg-red-100 text-red-700", group: "REJECTED" },
+    { id: "terminated", title: "Terminated", color: "bg-red-100 text-red-700", group: "REJECTED" },
   ];
 };
 
@@ -687,26 +696,18 @@ const stateColorMap = Object.fromEntries(
 );
 
 // Create color map for statuses - column backgrounds are light gray, badges keep their colors
-const statusColorMap = Object.fromEntries([
-  ...Object.entries(STATUSES).flatMap(([state, statuses]) =>
-    statuses.map(status => [status.id, "bg-gray-100 border-gray-200"]) // Light gray background for all columns
-  ),
-  // Add main statuses colors - column backgrounds are light gray
-  ...getMainStatuses().map(status => [status.id, "bg-gray-100 border-gray-200"]) // Light gray background for all columns
-]);
+const statusColorMap = Object.fromEntries(
+  getMainStatuses().map(status => [status.id, "bg-gray-100 border-gray-200"]) // Light gray background for all columns
+);
 
 // Create color map for status badges - preserves original colors for badges
-const statusBadgeColorMap = Object.fromEntries([
-  ...Object.entries(STATUSES).flatMap(([state, statuses]) =>
-    statuses.map(status => [status.id, status.color]) // Original colors for badges
-  ),
-  // Add main statuses colors for badges
-  ...getMainStatuses().map(status => [status.id, status.color]) // Original colors for badges
-]);
+const statusBadgeColorMap = Object.fromEntries(
+  getMainStatuses().map(status => [status.id, status.color]) // Original colors for badges
+);
 
 // Function to get all statuses
 const getAllStatuses = () => {
-  const allStatuses = Object.entries(STATUSES).flatMap(([state, statuses]) => statuses);
+  const allStatuses = getMainStatuses();
   console.log('getAllStatuses called, returning:', allStatuses.map(s => ({ id: s.id, title: s.title })));
   return allStatuses;
 };
@@ -720,11 +721,21 @@ const findStatusById = (id: string) => {
 
 // Function to find state by status
 const findStateByStatus = (statusId: string) => {
-  for (const [stateId, statuses] of Object.entries(STATUSES)) {
-    if (statuses.some(s => s.id === statusId)) {
-      return STATES.find(s => s.id === stateId);
-    }
+  // Check main statuses
+  const mainStatus = getMainStatuses().find(s => s.id === statusId);
+  if (mainStatus) {
+    // Map group to state
+    const groupToStateMap: Record<string, string> = {
+      'CREATED': 'created',
+      'ACTIVE': 'active', 
+      'PAUSED': 'paused',
+      'COMPLETED': 'completed',
+      'REJECTED': 'terminated'
+    };
+    const stateId = groupToStateMap[mainStatus.group];
+    return STATES.find(s => s.id === stateId);
   }
+  
   return null;
 };
 
@@ -898,12 +909,20 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     fromStatus: string;
     toStatus: string;
     availableStatuses: any[];
+    destinationIndex?: number;
+    sourceIndex?: number;
+    sourceDroppableId?: string;
+    destinationDroppableId?: string;
   }>({
     isOpen: false,
     task: null,
     fromStatus: '',
     toStatus: '',
-    availableStatuses: []
+    availableStatuses: [],
+    destinationIndex: undefined,
+    sourceIndex: undefined,
+    sourceDroppableId: '',
+    destinationDroppableId: ''
   });
   
   // New state for column order - all 5 groups
@@ -917,8 +936,6 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
   // New state for status order (for status-based categories)
   const [statusOrder, setStatusOrder] = useState<string[]>([
-    "draft",
-    "new", 
     "to_do", 
     "in_progress", 
     "needs_work", 
@@ -1203,10 +1220,37 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   // Search and filter tasks
   const filteredTasks = useMemo(() => {
     let filtered = tasks;
+    console.log('filteredTasks memo - initial tasks count:', filtered.length);
+    console.log('filteredTasks memo - activeCategory:', activeCategory);
 
     // Category filter
     if (activeCategory && activeCategory !== "All tasks") {
+      console.log('filteredTasks memo - applying category filter for:', activeCategory);
+      console.log('filteredTasks memo - sample tasks before filter:', filtered.slice(0, 3).map(t => ({ id: t.id, category: t.category, title: t.title })));
+      
+      // Filter parent tasks by category
       filtered = filtered.filter(task => task.category === activeCategory);
+      
+      // For category-specific pages, also filter subtasks to only include those whose parent is in the current category
+      if (activeCategory !== "All tasks") {
+        filtered = filtered.map(task => {
+          if (task.subtasks) {
+            // Only include subtasks whose parent task is in the current category
+            const filteredSubtasks = task.subtasks.filter((subtask: any) => {
+              // The subtask should inherit the parent's category
+              return true; // Since we've already filtered parent tasks by category
+            });
+            return {
+              ...task,
+              subtasks: filteredSubtasks
+            };
+          }
+          return task;
+        });
+      }
+      
+      console.log('filteredTasks memo - after category filter, count:', filtered.length, 'category:', activeCategory);
+      console.log('filteredTasks memo - sample tasks after filter:', filtered.slice(0, 3).map(t => ({ id: t.id, category: t.category, title: t.title })));
     }
 
     // Archive filter
@@ -1462,48 +1506,82 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     const statusGroup = getStatusGroup(status);
     console.log(`Status group for ${status}: ${statusGroup}`);
     
-    // Show parent tasks that belong to the same group as this status
+    // For category-specific pages, filter by exact status match
+    // For "All tasks" page, filter by status group
     const parentTasksInStatus = filteredTasks.filter(t => {
-      const taskGroup = getStatusGroup(t.status);
-      const matches = taskGroup === statusGroup;
+      let matches;
+      if (activeCategory === "All tasks") {
+        // On "All tasks" page, show tasks by status group
+        const taskGroup = getStatusGroup(t.status);
+        matches = taskGroup === statusGroup;
+      } else {
+        // On category pages, show tasks by exact status match
+        matches = t.status === status;
+      }
+      
       if (matches) {
-        console.log(`Found parent task: ${t.id} (${t.title}) with status ${t.status} in group ${taskGroup}`);
+        console.log(`Found parent task: ${t.id} (${t.title}) with status ${t.status} in group ${getStatusGroup(t.status)}`);
       }
       return matches;
     });
     console.log(`Parent tasks in status ${status}: ${parentTasksInStatus.length}`);
 
-    // Get all subtasks that belong to the same group
+    // Get all subtasks that belong to the same group/status
     const subtasksInStatus: any[] = [];
     
-    // Show subtasks as separate elements on all tabs
+    // Only show subtasks as separate elements when they are in a different status than their parent
+    // and when the parent task is not in the same column
     filteredTasks.forEach(parentTask => {
       if (parentTask.subtasks) {
         parentTask.subtasks.forEach((subtask: any) => {
-          const subtaskGroup = getStatusGroup(subtask.status);
-          if (subtaskGroup === statusGroup) {
-            // Special logic for "Created" column on "All Tasks" view
-            if (activeCategory === "All tasks" && statusGroup === "CREATED") {
-              // In "Created" column, NEVER show subtasks as separate cards
-              // They should only appear when parent task is expanded
-              console.log(`Hiding subtask ${subtask.id} in "Created" column - subtasks should always stay with parent`);
-              return; // Skip this subtask
-            }
+          let subtaskMatches;
+          if (activeCategory === "All tasks") {
+            // On "All tasks" page, filter subtasks by status group
+            const subtaskGroup = getStatusGroup(subtask.status);
+            subtaskMatches = subtaskGroup === statusGroup;
+          } else {
+            // On category pages, filter subtasks by exact status match
+            subtaskMatches = subtask.status === status;
+          }
+          
+          if (subtaskMatches) {
+            // Check if parent task is also in the same column
+            const parentTaskInSameColumn = parentTasksInStatus.some(pt => pt.id === parentTask.id);
             
-            // Add parent task info to subtask for display
-            const subtaskWithParent = {
-              ...subtask,
-              parentTask: {
-                id: parentTask.id,
-                title: parentTask.title,
-                taskId: parentTask.taskId,
-                category: parentTask.category,
-                status: parentTask.status // Include parent status for business logic validation
-              },
-              isSubtask: true
-            };
-            subtasksInStatus.push(subtaskWithParent);
-            console.log(`Found subtask: ${subtask.id} (${subtask.title}) with status ${subtask.status} in group ${subtaskGroup}`);
+            // Only show subtask as separate item if parent is NOT in the same column
+            // This prevents duplicate rendering
+            if (!parentTaskInSameColumn) {
+              // Special logic for "Created" column on "All Tasks" view
+              if (activeCategory === "All tasks" && statusGroup === "CREATED") {
+                // In "Created" column, NEVER show subtasks as separate cards
+                // They should only appear when parent task is expanded
+                console.log(`Hiding subtask ${subtask.id} in "Created" column - subtasks should always stay with parent`);
+                return; // Skip this subtask
+              }
+              
+              // For category-specific pages, ensure subtask belongs to the correct category
+              if (activeCategory !== "All tasks" && parentTask.category !== activeCategory) {
+                console.log(`Hiding subtask ${subtask.id} - parent task category (${parentTask.category}) doesn't match active category (${activeCategory})`);
+                return; // Skip this subtask
+              }
+              
+              // Add parent task info to subtask for display
+              const subtaskWithParent = {
+                ...subtask,
+                parentTask: {
+                  id: parentTask.id,
+                  title: parentTask.title,
+                  taskId: parentTask.taskId,
+                  category: parentTask.category,
+                  status: parentTask.status // Include parent status for business logic validation
+                },
+                isSubtask: true
+              };
+              subtasksInStatus.push(subtaskWithParent);
+              console.log(`Found subtask: ${subtask.id} (${subtask.title}) with status ${subtask.status} in group ${getStatusGroup(subtask.status)}`);
+            } else {
+              console.log(`Hiding subtask ${subtask.id} - parent task ${parentTask.id} is in the same column`);
+            }
           }
         });
       }
@@ -1612,6 +1690,16 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
         };
       });
       
+      // Add visual feedback for reordering
+      const movedTaskElement = document.querySelector(`[data-task-id="${draggableId}"]`);
+      if (movedTaskElement) {
+        // Add reorder animation
+        movedTaskElement.classList.add('task-reorder-animation');
+        setTimeout(() => {
+          movedTaskElement.classList.remove('task-reorder-animation');
+        }, 200);
+      }
+      
       toast.success("Task order updated");
       return;
     }
@@ -1670,7 +1758,11 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             task,
             fromStatus: task.status,
             toStatus: destination.droppableId,
-            availableStatuses: validStatuses
+            availableStatuses: validStatuses,
+            destinationIndex: destination.index,
+            sourceIndex: source.index,
+            sourceDroppableId: source.droppableId,
+            destinationDroppableId: destination.droppableId
           });
           return; // Don't proceed with the move yet
         }
@@ -1772,6 +1864,27 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       
       toast.success(`Task moved to ${destination.droppableId}`);
       
+      // Add animation and scroll to the moved task
+      setTimeout(() => {
+        const movedTaskElement = document.querySelector(`[data-task-id="${draggableId}"]`);
+        if (movedTaskElement) {
+          // Add insertion animation
+          movedTaskElement.classList.add('task-insert-animation');
+          
+          // Scroll to the task if it's out of view
+          movedTaskElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          });
+          
+          // Remove animation class after animation completes
+          setTimeout(() => {
+            movedTaskElement.classList.remove('task-insert-animation');
+          }, 300);
+        }
+      }, 100);
+      
       // Additional debugging: Log the current state after the move
       setTimeout(() => {
         console.log(`=== POST-MOVE DEBUG ===`);
@@ -1802,7 +1915,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
   // Handle status selection popup confirmation
   const handleStatusSelectionConfirm = (selectedStatus: string) => {
-    const { task, fromStatus, toStatus } = statusSelectionPopup;
+    const { task, fromStatus, toStatus, destinationIndex, sourceDroppableId, destinationDroppableId } = statusSelectionPopup;
     
     if (!task) return;
     
@@ -1839,20 +1952,55 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       toast.success(`Task "${task.title}" moved from ${fromGroup} to ${toGroup}`);
     }
     
-    // Update task order in destination column
+    // Update task order with proper insertion at destination index
     setTaskOrder(prev => {
-      const destinationColumnTasks = getColumnTasks(selectedStatus);
-      const currentOrder = prev[selectedStatus] || destinationColumnTasks.map(t => t.id);
-      const newOrder = Array.from(currentOrder);
+      const newOrder = { ...prev };
       
-      // Insert the moved task at the beginning
-      newOrder.unshift(task.id);
+      // Remove from source column if it exists
+      if (sourceDroppableId && newOrder[sourceDroppableId]) {
+        newOrder[sourceDroppableId] = newOrder[sourceDroppableId].filter(id => id !== task.id);
+      }
       
-      return {
-        ...prev,
-        [selectedStatus]: newOrder
-      };
+      // Insert at the correct position in destination column
+      if (destinationIndex !== undefined) {
+        const destinationColumnTasks = getColumnTasks(selectedStatus);
+        const currentOrder = newOrder[selectedStatus] || destinationColumnTasks.map(t => t.id);
+        const newDestinationOrder = Array.from(currentOrder);
+        
+        // Insert the task at the specified destination index
+        newDestinationOrder.splice(destinationIndex, 0, task.id);
+        
+        newOrder[selectedStatus] = newDestinationOrder;
+      } else {
+        // Fallback: add to the beginning if no destination index
+        const destinationColumnTasks = getColumnTasks(selectedStatus);
+        const currentOrder = newOrder[selectedStatus] || destinationColumnTasks.map(t => t.id);
+        newOrder[selectedStatus] = [task.id, ...currentOrder];
+      }
+      
+      return newOrder;
     });
+    
+    // Add animation and scroll to the newly inserted task after a short delay
+    setTimeout(() => {
+      const taskElement = document.querySelector(`[data-task-id="${task.id}"]`);
+      if (taskElement) {
+        // Add insertion animation
+        taskElement.classList.add('task-insert-animation');
+        
+        // Scroll to the task
+        taskElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center',
+          inline: 'nearest'
+        });
+        
+        // Remove animation class after animation completes
+        setTimeout(() => {
+          taskElement.classList.remove('task-insert-animation');
+        }, 300);
+      }
+    }, 100);
   };
 
   // Handle status selection popup close
@@ -1862,7 +2010,11 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       task: null,
       fromStatus: '',
       toStatus: '',
-      availableStatuses: []
+      availableStatuses: [],
+      destinationIndex: undefined,
+      sourceIndex: undefined,
+      sourceDroppableId: '',
+      destinationDroppableId: ''
     });
   };
 
@@ -2120,6 +2272,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             ref={provided.innerRef}
             {...provided.draggableProps}
             className="relative"
+            data-task-id={task.id}
             style={{
               ...provided.draggableProps.style,
               transform: provided.draggableProps.style?.transform,
@@ -2620,7 +2773,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                         <GripVertical className="w-3 h-3 text-gray-400" />
                                       </div>
                                     )}
-                                    <div className={`flex items-center justify-between mb-0 px-4 pt-3 pb-2 group group-${column.id}`}>
+                                    <div className={`flex items-center justify-between mb-0 px-4 pt-3 pb-2 group`}>
                                       <div className="flex items-center gap-1 group/header">
                                         {(() => {
                                           const state = findStateByStatus(column.id);
@@ -2680,7 +2833,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                         <Button
                                           size="icon"
                                           variant="ghost"
-                                          className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity`}
+                                          className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 invisible group-hover:visible transition-all duration-200`}
                                           onClick={e => {
                                             e.stopPropagation();
                                             setCollapsed(c => ({ ...c, [column.id]: true }));
@@ -2694,7 +2847,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                         <Button
                                           size="icon"
                                           variant="ghost"
-                                          className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity`}
+                                          className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 invisible group-hover:visible transition-all duration-200`}
                                           onClick={e => {
                                             e.stopPropagation();
                                             // Trigger modal open with status
@@ -2707,76 +2860,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                               <span className="sr-only">Add task</span>
                                               <span>+</span>
                                             </Button>
-                                        {/* More button */}
-                                        <Popover 
-                                          open={columnMenuOpen[column.id]} 
-                                          onOpenChange={(open) => setColumnMenuOpen(prev => ({ ...prev, [column.id]: open }))}
-                                        >
-                                          <PopoverTrigger asChild>
-                                            <Button
-                                              size="icon"
-                                              variant="ghost"
-                                              className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/column-header:opacity-100 transition-opacity`}
-                                              title="More actions"
-                                              onClick={e => { e.stopPropagation(); }}
-                                            >
-                                              <span className="sr-only">More</span>
-                                              <span className="text-xs">...</span>
-                                            </Button>
-                                          </PopoverTrigger>
-                                          <PopoverContent className="w-48 p-1" align="end">
-                                            <div className="space-y-1">
-                                              <Button
-                                                variant="ghost"
-                                                className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
-                                                onClick={() => {
-                                                  setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }));
-                                                  setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
-                                                }}
-                                              >
-                                                {collapsed[column.id] ? 'Expand group' : 'Collapse group'}
-                                              </Button>
-                                              <Button
-                                                variant="ghost"
-                                                className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
-                                                onClick={() => {
-                                                  selectAllTasksInColumn(column.id, true);
-                                                  setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
-                                                  toast.success(`Selected all tasks in ${column.title}`);
-                                                }}
-                                              >
-                                                Select all tasks
-                                              </Button>
-                                              <Button
-                                                variant="ghost"
-                                                className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
-                                                onClick={() => {
-                                                  setEditingGroupId(column.id);
-                                                  setNewGroupName(getGroupDisplayName(column.id, column.title));
-                                                  setShowRenameModal(true);
-                                                  setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
-                                                }}
-                                              >
-                                                Rename group
-                                              </Button>
 
-                                              <Button
-                                                variant="ghost"
-                                                className="w-full justify-start text-xs font-normal px-2 py-1 h-auto"
-                                                onClick={() => {
-                                                  toggleGroupPin(column.id);
-                                                  setColumnMenuOpen(prev => ({ ...prev, [column.id]: false }));
-                                                  toast.success(pinnedGroups.has(column.id) ? `Group "${column.title}" is now unpinned` : `Group "${column.title}" is now pinned`);
-                                                }}
-                                              >
-                                                {pinnedGroups.has(column.id) ? "Unpin group" : "Pin group"}
-                                                {pinnedGroups.has(column.id) && (
-                                                  <Badge className="ml-auto text-xs bg-blue-100 text-blue-600">Pinned</Badge>
-                                                )}
-                                              </Button>
-                                            </div>
-                                          </PopoverContent>
-                                        </Popover>
                                       </div>
                                     </div>
                                   </div>
@@ -2812,6 +2896,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                                       ref={provided.innerRef}
                                                       {...provided.draggableProps}
                                                       className="relative"
+                                                      data-task-id={task.id}
                                                       style={{
                                                         ...provided.draggableProps.style,
                                                         transform: provided.draggableProps.style?.transform,
@@ -2862,6 +2947,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                                           ref={provided.innerRef}
                                                           {...provided.draggableProps}
                                                           className="relative ml-6"
+                                                          data-task-id={subtask.id}
                                                           style={{
                                                             ...provided.draggableProps.style,
                                                             transform: provided.draggableProps.style?.transform,
@@ -3031,8 +3117,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                             }}
                           >
 
-                            <div className={`relative group group-${column.id}`}>
-                              <div className="flex items-center justify-between mb-0 px-4 pt-3 pb-2">
+                            <div className={`relative`}>
+                              <div className="flex items-center justify-between mb-0 px-4 pt-3 pb-2 group">
                                 <div className="flex items-center gap-1 group/header">
                                   {(() => {
                                     const state = findStateByStatus(column.id);
@@ -3071,7 +3157,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                   <Button
                                     size="icon"
                                     variant="ghost"
-                                    className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/group-${column.id}:opacity-100 transition-opacity`}
+                                    className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 invisible group-hover:visible transition-all duration-200`}
                                     onClick={e => {
                                       e.stopPropagation();
                                       setCollapsed(c => ({ ...c, [column.id]: true }));
@@ -3084,7 +3170,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                   <Button
                                     size="icon"
                                     variant="ghost"
-                                    className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/group-${column.id}:opacity-100 transition-opacity`}
+                                    className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 invisible group-hover:visible transition-all duration-200`}
                                     onClick={e => {
                                       e.stopPropagation();
                                       // Trigger modal open with status
@@ -3105,7 +3191,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                       <Button
                                         size="icon"
                                         variant="ghost"
-                                        className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/group-${column.id}:opacity-100 transition-opacity`}
+                                        className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-8 w-8 rounded-full hover:bg-gray-100 text-gray-400 invisible group-hover:visible transition-all duration-200`}
                                         title="More actions"
                                         onClick={e => { e.stopPropagation(); }}
                                       >

@@ -1,0 +1,428 @@
+{
+  "stage_mapping": {
+    "Created": [
+      "draft",
+      "new",
+      "to_do",
+      "requested",
+      "backlog"
+    ],
+    "Active": [
+      "in_progress",
+      "in_review",
+      "scheduled",
+      "working",
+      "ongoing",
+      "doing",
+      "assigned"
+    ],
+    "Paused": [
+      "paused",
+      "waiting",
+      "on_hold",
+      "blocked",
+      "needs_input",
+      "needs_work"
+    ],
+    "Completed": [
+      "done",
+      "approved",
+      "paid",
+      "completed",
+      "closed",
+      "validated"
+    ],
+    "Rejected": [
+      "rejected",
+      "declined",
+      "canceled",
+      "terminated"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "taskId": "BUDG-001",
+      "title": "Quarterly Budget Review",
+      "category": "Budget",
+      "status": "in_review",
+      "stage": "Active",
+      "priority": "High",
+      "assignee": { "name": "Marley Bergson", "initials": "MB", "department": "Finance" },
+      "teamMembers": [
+        { "name": "Marley Bergson", "initials": "MB", "avatarUrl": "https://randomuser.me/api/portraits/women/1.jpg" },
+        { "name": "Sarah Chen", "initials": "SC", "avatarUrl": "https://randomuser.me/api/portraits/women/2.jpg" },
+        { "name": "David Kim", "initials": "DK", "avatarUrl": "https://randomuser.me/api/portraits/men/3.jpg" }
+      ],
+      "subtasks": [
+        {
+          "id": "T1.1",
+          "taskId": "BUDG-001-1",
+          "title": "Review Q3 expenses",
+          "status": "done",
+          "category": "Budget",
+          "assignee": { "name": "Marley Bergson", "initials": "MB", "department": "Finance" },
+          "dueDate": "2024-11-15"
+        },
+        {
+          "id": "T1.2",
+          "taskId": "BUDG-001-2",
+          "title": "Forecast Q4 budget",
+          "status": "in_progress",
+          "category": "Budget",
+          "assignee": { "name": "Sarah Chen", "initials": "SC", "department": "Finance" },
+          "dueDate": "2024-11-20"
+        }
+      ],
+      "tags": ["finance", "budget", "quarterly"],
+      "dueDate": "2024-11-30",
+      "progress": 75,
+      "department": "Finance",
+      "type": "Task",
+      "clientInfo": "Acme Inc.",
+      "description": "Comprehensive review of quarterly budget performance and forecasting for next quarter. Includes expense analysis, revenue projections, and budget allocation adjustments.",
+      "attachmentCount": 12,
+      "commentCount": 18,
+      "lastStatusChange": "2024-11-01T10:00:00Z"
+    },
+    {
+      "id": "T2",
+      "taskId": "PHIL-002",
+      "title": "Annual Charity Gala",
+      "category": "Philanthropy",
+      "status": "scheduled",
+      "stage": "Active",
+      "priority": "Normal",
+      "assignee": { "name": "Cheyenne Calzoni", "initials": "CC", "department": "Philanthropy" },
+      "teamMembers": [
+        { "name": "Cheyenne Calzoni", "initials": "CC", "avatarUrl": "https://randomuser.me/api/portraits/women/4.jpg" },
+        { "name": "Michael Thompson", "initials": "MT", "avatarUrl": "https://randomuser.me/api/portraits/men/5.jpg" }
+      ],
+      "subtasks": [
+        {
+          "id": "T2.1",
+          "taskId": "PHIL-002-1",
+          "title": "Venue Selection",
+          "status": "done",
+          "category": "Philanthropy",
+          "assignee": { "name": "Cheyenne Calzoni", "initials": "CC", "department": "Philanthropy" },
+          "dueDate": "2024-10-15"
+        },
+        {
+          "id": "T2.2",
+          "taskId": "PHIL-002-2",
+          "title": "Catering Arrangements",
+          "status": "in_progress",
+          "category": "Philanthropy",
+          "assignee": { "name": "Michael Thompson", "initials": "MT", "department": "Philanthropy" },
+          "dueDate": "2024-11-25"
+        },
+        {
+          "id": "T2.3",
+          "taskId": "PHIL-002-3",
+          "title": "Guest List Management",
+          "status": "to_do",
+          "category": "Philanthropy",
+          "assignee": { "name": "Cheyenne Calzoni", "initials": "CC", "department": "Philanthropy" },
+          "dueDate": "2024-12-01"
+        }
+      ],
+      "tags": ["event", "charity", "gala"],
+      "dueDate": "2024-12-15",
+      "progress": 60,
+      "department": "Philanthropy",
+      "type": "Task",
+      "clientInfo": "Stellar Foundation",
+      "description": "Organize annual charity gala event with 200+ attendees. Includes venue booking, catering, entertainment, and fundraising activities.",
+      "attachmentCount": 25,
+      "commentCount": 32,
+      "lastStatusChange": "2024-11-05T14:30:00Z"
+    },
+    {
+      "id": "T3",
+      "taskId": "LEG-003",
+      "title": "Contract Negotiation",
+      "category": "Legal",
+      "status": "waiting",
+      "stage": "Paused",
+      "priority": "High",
+      "assignee": { "name": "Justin's team", "initials": "JT", "department": "Legal" },
+      "teamMembers": [
+        { "name": "Justin Miller", "initials": "JM", "avatarUrl": "https://randomuser.me/api/portraits/men/6.jpg" },
+        { "name": "Emily Rodriguez", "initials": "ER", "avatarUrl": "https://randomuser.me/api/portraits/women/7.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["legal", "contract", "negotiation"],
+      "dueDate": "2024-11-25",
+      "progress": 40,
+      "department": "Legal",
+      "type": "Task",
+      "clientInfo": "Global Ventures LLC",
+      "description": "Negotiate terms for new partnership agreement. Waiting for counterparty response on key terms.",
+      "attachmentCount": 8,
+      "commentCount": 15,
+      "lastStatusChange": "2024-11-08T09:15:00Z"
+    },
+    {
+      "id": "T4",
+      "taskId": "INV-004",
+      "title": "Portfolio Analysis",
+      "category": "Investment",
+      "status": "draft",
+      "stage": "Created",
+      "priority": "High",
+      "assignee": { "name": "Erin George", "initials": "EG", "department": "Investment" },
+      "teamMembers": [
+        { "name": "Erin George", "initials": "EG", "avatarUrl": "https://randomuser.me/api/portraits/women/8.jpg" },
+        { "name": "Lisa Wang", "initials": "LW", "avatarUrl": "https://randomuser.me/api/portraits/women/9.jpg" }
+      ],
+      "subtasks": [
+        {
+          "id": "T4.1",
+          "taskId": "INV-004-1",
+          "title": "Market Research",
+          "status": "draft",
+          "category": "Investment",
+          "assignee": { "name": "Erin George", "initials": "EG", "department": "Investment" },
+          "dueDate": "2024-11-20"
+        }
+      ],
+      "tags": ["investment", "analysis", "portfolio"],
+      "dueDate": "2024-12-10",
+      "progress": 25,
+      "department": "Investment",
+      "type": "Task",
+      "clientInfo": "TechCorp Solutions",
+      "description": "Comprehensive analysis of current investment portfolio performance and identification of new opportunities.",
+      "attachmentCount": 18,
+      "commentCount": 22,
+      "lastStatusChange": "2024-11-10T16:45:00Z"
+    },
+    {
+      "id": "T5",
+      "taskId": "TRAV-005",
+      "title": "Executive Travel Arrangements",
+      "category": "Travel",
+      "status": "done",
+      "stage": "Completed",
+      "priority": "Normal",
+      "assignee": { "name": "Travel Team", "initials": "TT", "department": "Operations" },
+      "teamMembers": [
+        { "name": "Travel Coordinator", "initials": "TC", "avatarUrl": "https://randomuser.me/api/portraits/women/10.jpg" }
+      ],
+      "subtasks": [
+        {
+          "id": "T5.1",
+          "taskId": "TRAV-005-1",
+          "title": "Flight Bookings",
+          "status": "done",
+          "category": "Travel",
+          "assignee": { "name": "Travel Team", "initials": "TT", "department": "Operations" },
+          "dueDate": "2024-11-10"
+        },
+        {
+          "id": "T5.2",
+          "taskId": "TRAV-005-2",
+          "title": "Hotel Reservations",
+          "status": "done",
+          "category": "Travel",
+          "assignee": { "name": "Travel Team", "initials": "TT", "department": "Operations" },
+          "dueDate": "2024-11-12"
+        }
+      ],
+      "tags": ["travel", "executive", "bookings"],
+      "dueDate": "2024-11-15",
+      "progress": 100,
+      "department": "Operations",
+      "type": "Task",
+      "clientInfo": "Acme Inc.",
+      "description": "Arrange business travel for executive team including flights, hotels, and ground transportation.",
+      "attachmentCount": 5,
+      "commentCount": 8,
+      "lastStatusChange": "2024-11-12T11:20:00Z"
+    },
+    {
+      "id": "T6",
+      "taskId": "FOOD-006",
+      "title": "Corporate Catering Menu",
+      "category": "Food",
+      "status": "approved",
+      "stage": "Completed",
+      "priority": "Low",
+      "assignee": { "name": "Catering Team", "initials": "CT", "department": "Operations" },
+      "teamMembers": [
+        { "name": "Chef Maria", "initials": "CM", "avatarUrl": "https://randomuser.me/api/portraits/women/11.jpg" },
+        { "name": "Nutritionist Alex", "initials": "NA", "avatarUrl": "https://randomuser.me/api/portraits/men/12.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["food", "catering", "menu"],
+      "dueDate": "2024-11-25",
+      "progress": 100,
+      "department": "Operations",
+      "type": "Task",
+      "clientInfo": "Stellar Foundation",
+      "description": "Design seasonal corporate catering menu with dietary accommodation options.",
+      "attachmentCount": 7,
+      "commentCount": 12,
+      "lastStatusChange": "2024-11-20T13:30:00Z"
+    },
+    {
+      "id": "T7",
+      "taskId": "HR-007",
+      "title": "Senior Developer Interview",
+      "category": "HR",
+      "status": "rejected",
+      "stage": "Rejected",
+      "priority": "Normal",
+      "assignee": { "name": "Giana Levin", "initials": "GL", "department": "HR" },
+      "teamMembers": [
+        { "name": "Giana Levin", "initials": "GL", "avatarUrl": "https://randomuser.me/api/portraits/women/13.jpg" },
+        { "name": "HR Partner", "initials": "HP", "avatarUrl": "https://randomuser.me/api/portraits/men/14.jpg" }
+      ],
+      "subtasks": [],
+      "tags": ["hr", "interview", "hiring"],
+      "dueDate": "2024-11-18",
+      "progress": 100,
+      "department": "HR",
+      "type": "Task",
+      "clientInfo": "TechCorp Solutions",
+      "description": "Conduct final interview for senior developer position. Candidate did not meet technical requirements.",
+      "attachmentCount": 4,
+      "commentCount": 7,
+      "lastStatusChange": "2024-11-15T15:45:00Z"
+    },
+    {
+      "id": "T8",
+      "taskId": "ACC-008",
+      "title": "Monthly Financial Reconciliation",
+      "category": "Accounting",
+      "status": "to_do",
+      "stage": "Created",
+      "priority": "High",
+      "assignee": { "name": "Sarah Mitchell", "initials": "SM", "department": "Finance" },
+      "teamMembers": [
+        { "name": "Sarah Mitchell", "initials": "SM", "avatarUrl": "https://randomuser.me/api/portraits/women/15.jpg" },
+        { "name": "Accountant Helen", "initials": "AH", "avatarUrl": "https://randomuser.me/api/portraits/women/16.jpg" }
+      ],
+      "subtasks": [
+        {
+          "id": "T8.1",
+          "taskId": "ACC-008-1",
+          "title": "Bank Reconciliation",
+          "status": "to_do",
+          "category": "Accounting",
+          "assignee": { "name": "Sarah Mitchell", "initials": "SM", "department": "Finance" },
+          "dueDate": "2024-11-30"
+        },
+        {
+          "id": "T8.2",
+          "taskId": "ACC-008-2",
+          "title": "Expense Verification",
+          "status": "to_do",
+          "category": "Accounting",
+          "assignee": { "name": "Accountant Helen", "initials": "AH", "department": "Finance" },
+          "dueDate": "2024-12-02"
+        }
+      ],
+      "tags": ["accounting", "reconciliation", "monthly"],
+      "dueDate": "2024-12-05",
+      "progress": 0,
+      "department": "Finance",
+      "type": "Task",
+      "clientInfo": "Metropolitan Holdings",
+      "description": "Complete monthly financial reconciliation including bank statements, expense reports, and general ledger review.",
+      "attachmentCount": 15,
+      "commentCount": 20,
+      "lastStatusChange": "2024-11-01T08:00:00Z"
+    },
+    {
+      "id": "T9",
+      "taskId": "IT-009",
+      "title": "System Security Audit",
+      "category": "IT",
+      "status": "in_progress",
+      "stage": "Active",
+      "priority": "Emergency",
+      "assignee": { "name": "IT Security Team", "initials": "IST", "department": "IT" },
+      "teamMembers": [
+        { "name": "Security Lead", "initials": "SL", "avatarUrl": "https://randomuser.me/api/portraits/men/17.jpg" },
+        { "name": "Network Admin", "initials": "NA", "avatarUrl": "https://randomuser.me/api/portraits/women/18.jpg" },
+        { "name": "Compliance Officer", "initials": "CO", "avatarUrl": "https://randomuser.me/api/portraits/men/19.jpg" }
+      ],
+      "subtasks": [
+        {
+          "id": "T9.1",
+          "taskId": "IT-009-1",
+          "title": "Vulnerability Assessment",
+          "status": "done",
+          "category": "IT",
+          "assignee": { "name": "Security Lead", "initials": "SL", "department": "IT" },
+          "dueDate": "2024-11-10"
+        },
+        {
+          "id": "T9.2",
+          "taskId": "IT-009-2",
+          "title": "Penetration Testing",
+          "status": "in_progress",
+          "category": "IT",
+          "assignee": { "name": "Network Admin", "initials": "NA", "department": "IT" },
+          "dueDate": "2024-11-25"
+        }
+      ],
+      "tags": ["security", "audit", "compliance"],
+      "dueDate": "2024-11-30",
+      "progress": 65,
+      "department": "IT",
+      "type": "Task",
+      "clientInfo": "All Clients",
+      "description": "Comprehensive security audit of all systems including vulnerability assessment, penetration testing, and compliance review.",
+      "attachmentCount": 30,
+      "commentCount": 45,
+      "lastStatusChange": "2024-11-15T14:20:00Z"
+    },
+    {
+      "id": "T10",
+      "taskId": "MKT-010",
+      "title": "Brand Campaign Launch",
+      "category": "Marketing",
+      "status": "blocked",
+      "stage": "Paused",
+      "priority": "High",
+      "assignee": { "name": "Marketing Team", "initials": "MT", "department": "Marketing" },
+      "teamMembers": [
+        { "name": "Creative Director", "initials": "CD", "avatarUrl": "https://randomuser.me/api/portraits/women/20.jpg" },
+        { "name": "Digital Strategist", "initials": "DS", "avatarUrl": "https://randomuser.me/api/portraits/men/21.jpg" }
+      ],
+      "subtasks": [
+        {
+          "id": "T10.1",
+          "taskId": "MKT-010-1",
+          "title": "Creative Development",
+          "status": "done",
+          "category": "Marketing",
+          "assignee": { "name": "Creative Director", "initials": "CD", "department": "Marketing" },
+          "dueDate": "2024-11-15"
+        },
+        {
+          "id": "T10.2",
+          "taskId": "MKT-010-2",
+          "title": "Legal Approval",
+          "status": "waiting",
+          "category": "Marketing",
+          "assignee": { "name": "Legal Team", "initials": "LT", "department": "Legal" },
+          "dueDate": "2024-11-28"
+        }
+      ],
+      "tags": ["marketing", "campaign", "brand"],
+      "dueDate": "2024-12-01",
+      "progress": 70,
+      "department": "Marketing",
+      "type": "Task",
+      "clientInfo": "Brand Partners",
+      "description": "Launch new brand campaign across all channels. Currently blocked waiting for legal approval of campaign materials.",
+      "attachmentCount": 22,
+      "commentCount": 28,
+      "lastStatusChange": "2024-11-18T16:30:00Z"
+    }
+  ]
+}

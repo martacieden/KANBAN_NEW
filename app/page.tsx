@@ -316,31 +316,31 @@ export default function Page() {
                             }
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent align="start" className="w-80 p-4 rounded-2xl shadow-2xl border border-[#e8e8ec] bg-white mt-2 max-h-[70vh] flex flex-col">
-                          <div className="relative mb-4">
+                        <PopoverContent align="start" className="w-64 p-3 rounded-xl shadow-lg border border-[#e8e8ec] bg-white mt-2 max-h-[60vh] flex flex-col">
+                          <div className="relative mb-3">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                             <Input
                               placeholder="Search"
-                              className="pl-10 bg-[#f9f9fb] border-[#e8e8ec]"
+                              className="pl-10 bg-[#f9f9fb] border-[#e8e8ec] h-8 text-sm"
                               value={settingsSearch}
                               onChange={e => setSettingsSearch(e.target.value)}
                             />
                           </div>
                           {/* Scrollable content area */}
-                          <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
+                          <div className="flex-1 overflow-y-auto min-h-0 space-y-1 pr-1">
                             {/* Show all available fields based on current view */}
                             {getCurrentFields()
                               .filter(field => field.key === 'divider' || field.label.toLowerCase().includes(settingsSearch.toLowerCase()))
                               .map((field, idx) => (
                                 <div key={field.key}>
                                   {field.key === 'divider' ? (
-                                    <div className="border-t border-gray-200 my-2"></div>
+                                    <div className="border-t border-gray-200 my-1"></div>
                                   ) : (
-                                    <div className="flex items-center justify-between py-1">
+                                    <div className="flex items-center justify-between py-0.5">
                                       <div className="flex items-center gap-2">
-                                        <span className="text-[15px] text-[#1c2024]">{field.label}</span>
+                                        <span className="text-sm text-[#1c2024]">{field.label}</span>
                                         {field.pinned && (
-                                          <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600">
+                                          <Badge variant="secondary" className="text-xs px-1 py-0 bg-gray-100 text-gray-600">
                                             Required
                                           </Badge>
                                         )}
@@ -365,7 +365,7 @@ export default function Page() {
                           </div>
                           {/* Reset button - fixed at bottom */}
                           <button
-                            className="mt-4 w-full py-2 rounded-md border border-[#e8e8ec] bg-[#f9f9fb] text-[#1c2024] font-medium hover:bg-[#f4f4f7] flex-shrink-0"
+                            className="mt-3 w-full py-1.5 rounded-md border border-[#e8e8ec] bg-[#f9f9fb] text-[#1c2024] font-medium hover:bg-[#f4f4f7] flex-shrink-0 text-sm"
                             onClick={() => setCardFields(() => {
                               const obj: Record<string, boolean> = {};
                               getCurrentFields().forEach(f => {

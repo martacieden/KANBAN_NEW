@@ -10,21 +10,30 @@ const getStatusDescription = (statusId: string): string => {
     'draft': 'Initial planning phase - task is being prepared',
     'new': 'Fresh task that needs to be started',
     'to_do': 'Ready to begin work',
+    'requested': 'Task has been requested but not yet started',
     'in_progress': 'Currently being worked on',
     'working': 'Active development in progress',
     'ongoing': 'Continuous work being done',
     'doing': 'Task is actively being processed',
     'assigned': 'Task has been assigned to someone',
+    'in_review': 'Task is under review or approval',
+    'scheduled': 'Task is scheduled for future work',
     'blocked': 'Work is temporarily stopped due to an issue',
     'needs_input': 'Waiting for information or decision',
     'needs_work': 'Requires additional work or revision',
     'on_hold': 'Temporarily paused',
+    'paused': 'Work has been paused temporarily',
+    'waiting': 'Waiting for external dependency or action',
     'done': 'Work is completed',
     'approved': 'Task has been reviewed and approved',
     'validated': 'Task has been verified and validated',
+    'paid': 'Task has been completed and paid for',
+    'completed': 'Task has been fully completed',
     'rejected': 'Task has been rejected',
     'canceled': 'Task has been cancelled',
-    'closed': 'Task is finished and closed'
+    'closed': 'Task is finished and closed',
+    'declined': 'Task has been declined',
+    'terminated': 'Task has been terminated'
   };
   
   return descriptions[statusId] || 'Status description not available';
@@ -116,13 +125,10 @@ const StatusSelectionPopup: React.FC<StatusSelectionPopupProps> = ({
                 onClick={() => setSelectedStatus(status.id)}
               >
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2">
                     <Badge className={status.color}>
                       {status.title}
                     </Badge>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {getStatusDescription(status.id)}
                   </div>
                 </div>
                 {selectedStatus === status.id && (

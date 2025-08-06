@@ -1,6 +1,7 @@
 {
   "stage_mapping": {
     "Created": [
+      "draft",
       "new",
       "to_do",
       "requested",
@@ -44,7 +45,7 @@
       "taskId": "BGT-001",
       "title": "Approve Q4 Budget Plan",
       "category": "Budget",
-      "status": "to_do",
+      "status": "draft",
       "stage": "Created",
       "priority": "High",
       "assignee": { "name": "Marley Bergson", "initials": "MB", "department": "Finance" },
@@ -57,7 +58,7 @@
           "id": "BGT-001-1",
           "taskId": "BGT-001-1",
           "title": "Review Department Budgets",
-          "status": "to_do",
+          "status": "draft",
           "category": "Budget",
           "assignee": { "name": "Marley Bergson", "initials": "MB", "department": "Finance" },
           "dueDate": "2024-12-15"
@@ -66,7 +67,7 @@
           "id": "BGT-001-2",
           "taskId": "BGT-001-2",
           "title": "Finalize Executive Summary",
-          "status": "to_do",
+          "status": "draft",
           "category": "Budget",
           "assignee": { "name": "Sarah Chen", "initials": "SC", "department": "Finance" },
           "dueDate": "2024-12-20"
