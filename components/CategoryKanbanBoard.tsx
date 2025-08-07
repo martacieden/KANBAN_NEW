@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, GripVertical, Plus, Paperclip, MessageCircle, ChevronUp, ChevronDown as ChevronDownIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronLeft, GripVertical, Plus, Paperclip, MessageCircle, ChevronUp, ChevronDown as ChevronDownIcon } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -23,6 +23,7 @@ import {
   validateStatusTransition,
   getMappingInfo
 } from '../lib/task-mapping-utils';
+import { useCategorySettings } from '../contexts/CategorySettingsContext';
 
 // Status badge color mapping
 const statusBadgeColorMap: Record<string, string> = {
@@ -440,8 +441,6 @@ interface CategoryKanbanBoardProps {
   onTaskUpdate?: (taskId: string, updates: any) => void;
   onTaskClick?: (task: any) => void;
   onFiltersChange?: (count: number) => void;
-  groupOrder?: string[];
-  enabledGroups?: Record<string, boolean>;
   cardFields?: Record<string, boolean>;
 }
 
@@ -451,10 +450,9 @@ export default function CategoryKanbanBoard({
   onTaskUpdate, 
   onTaskClick,
   onFiltersChange,
-  groupOrder = [],
-  enabledGroups = {},
   cardFields = {}
 }: CategoryKanbanBoardProps) {
+  const { getCategorySettings, getCategoryGroups } = useCategorySettings();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [draggedTask, setDraggedTask] = useState<any>(null);
   const [expandedSubtasks, setExpandedSubtasks] = useState<Record<string, boolean>>({});
@@ -473,7 +471,12 @@ export default function CategoryKanbanBoard({
   });
   
   const [agingFilter, setAgingFilter] = useState('all');
-  const now = new Date();
+  const [now, setNow] = useState<Date | null>(null);
+  
+  // Set now time after component mounts to avoid hydration mismatch
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
   
   // Синхронізуємо з tasks prop
   useEffect(() => {
@@ -528,27 +531,37 @@ export default function CategoryKanbanBoard({
     return getCategoryStatusGroups(category);
   }, [category]);
 
-  // Filter enabled statuses based on enabledGroups prop
+  // Get category settings and apply them
+  const categorySettings = useMemo(() => {
+    return getCategorySettings(category);
+  }, [category, getCategorySettings]);
+
+  // Filter enabled statuses based on category settings
   const enabledStatusGroups = useMemo(() => {
-    return statusGroups.filter(status => status && enabledGroups[status.id] !== false);
-  }, [statusGroups, enabledGroups]);
+    const settings = getCategorySettings(category);
+    return statusGroups
+      .filter(status => status && settings.enabledGroups[status.id] !== false)
+      .sort((a, b) => {
+        const aIndex = settings.groupOrder.indexOf(a.id);
+        const bIndex = settings.groupOrder.indexOf(b.id);
+        return aIndex - bIndex;
+      });
+  }, [statusGroups, category, getCategorySettings]);
   
-  // Use groupOrder if provided, otherwise use category-specific statuses
+  // Use enabled status groups for display
   const displayGroups = useMemo(() => {
-    if (groupOrder.length > 0) {
-      const categoryStatusIds = new Set(statusGroups.filter(s => s).map(s => s.id));
-      return groupOrder
-        .map(statusId => statusGroups.find(s => s && s.id === statusId))
-        .filter(Boolean)
-        .filter(status => status && enabledGroups[status.id] !== false && categoryStatusIds.has(status.id));
-    }
-    return statusGroups.filter(status => status && enabledGroups[status.id] !== false);
-  }, [groupOrder, statusGroups, enabledGroups]);
+    return enabledStatusGroups;
+  }, [enabledStatusGroups]);
 
   // Collapse all groups function
   const collapseAllGroups = useCallback(() => {
+    console.log(`CategoryKanbanBoard collapseAllGroups called for category: ${category}`);
     const newCollapsed: Record<string, boolean> = {};
-    displayGroups.forEach(group => {
+    
+    // Використовуємо displayGroups для категорійних сторінок
+    console.log(`Processing ${displayGroups.length} groups for collapse:`, displayGroups.map((g: any) => g?.id));
+    
+    displayGroups.forEach((group: any) => {
       if (group) {
         newCollapsed[group.id] = true;
       }
@@ -558,13 +571,19 @@ export default function CategoryKanbanBoard({
     // Collapse all subtasks
     setExpandedSubtasks({});
     
+    console.log(`CategoryKanbanBoard collapsed all subtasks`);
     toast.success("All groups collapsed and subtasks ungrouped");
-  }, [displayGroups]);
+  }, [displayGroups, category]);
 
   // Expand all groups function
   const expandAllGroups = useCallback(() => {
+    console.log(`CategoryKanbanBoard expandAllGroups called for category: ${category}`);
     const newCollapsed: Record<string, boolean> = {};
-    displayGroups.forEach(group => {
+    
+    // Використовуємо displayGroups для категорійних сторінок
+    console.log(`Processing ${displayGroups.length} groups for expand:`, displayGroups.map((g: any) => g?.id));
+    
+    displayGroups.forEach((group: any) => {
       if (group) {
         newCollapsed[group.id] = false;
       }
@@ -579,8 +598,9 @@ export default function CategoryKanbanBoard({
     });
     setExpandedSubtasks(newExpandedSubtasks);
     
+    console.log(`CategoryKanbanBoard expanded ${Object.keys(newExpandedSubtasks).length} subtasks`);
     toast.success("All groups expanded and subtasks grouped");
-  }, [displayGroups, categoryTasks]);
+  }, [displayGroups, categoryTasks, category]);
 
   // Set global functions for the collapse/expand all buttons
   useEffect(() => {
@@ -594,7 +614,7 @@ export default function CategoryKanbanBoard({
   }, [collapseAllGroups, expandAllGroups]);
 
   // Debug log to ensure we're using the correct status groups
-  console.log(`CategoryKanbanBoard for category "${category}" using status groups:`, enabledStatusGroups.filter(g => g).map(g => g.id));
+  console.log(`CategoryKanbanBoard for category "${category}" using status groups:`, enabledStatusGroups.filter((g: any) => g).map((g: any) => g.id));
 
   // Quick filter helper functions
   const isOnHold = (task: any) => {
@@ -620,8 +640,9 @@ export default function CategoryKanbanBoard({
   };
 
   const isStalled = (task: any) => {
-    const lastUpdate = task.lastStatusChange ? new Date(task.lastStatusChange) : new Date();
-    const daysSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
+    if (!now) return false;
+    const lastUpdate = task.lastStatusChange ? new Date(task.lastStatusChange) : now;
+    const daysSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
     
     if (stalledPeriod === 'all') return daysSinceUpdate > 7;
     if (stalledPeriod === '7') return daysSinceUpdate > 7;
@@ -632,23 +653,22 @@ export default function CategoryKanbanBoard({
   };
 
   const isOverdue = (task: any) => {
-    if (!task.dueDate) return false;
+    if (!task.dueDate || !now) return false;
     const dueDate = new Date(task.dueDate);
-    return dueDate < new Date() && !['done', 'completed', 'approved'].includes(task.status);
+    return dueDate < now && !['done', 'completed', 'approved'].includes(task.status);
   };
 
   const isDueSoon = (task: any) => {
-    if (!task.dueDate) return false;
+    if (!task.dueDate || !now) return false;
     const dueDate = new Date(task.dueDate);
-    const now = new Date();
     const daysUntilDue = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     return daysUntilDue <= 3 && daysUntilDue >= 0 && !['done', 'completed', 'approved'].includes(task.status);
   };
 
   const isRecentlyUpdated = (task: any) => {
-    if (!task.lastStatusChange) return false;
+    if (!task.lastStatusChange || !now) return false;
     const lastUpdate = new Date(task.lastStatusChange);
-    const daysSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
+    const daysSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
     return daysSinceUpdate <= 1;
   };
 
@@ -803,8 +823,8 @@ export default function CategoryKanbanBoard({
       }
       
       // ВАЛІДАЦІЯ: Перевіряємо чи можна перемістити завдання між цими групами
-      const sourceGroup = statusGroups && statusGroups.length > 0 ? statusGroups.find(g => g && g.id === source.droppableId) : null;
-      const targetGroup = statusGroups && statusGroups.length > 0 ? statusGroups.find(g => g && g.id === destination.droppableId) : null;
+      const sourceGroup = statusGroups && statusGroups.length > 0 ? statusGroups.find((g: any) => g && g.id === source.droppableId) : null;
+      const targetGroup = statusGroups && statusGroups.length > 0 ? statusGroups.find((g: any) => g && g.id === destination.droppableId) : null;
       
       if (!sourceGroup || !targetGroup) {
         console.log(`Invalid groups: source=${source.droppableId}, target=${destination.droppableId}`);
@@ -1267,7 +1287,9 @@ export default function CategoryKanbanBoard({
     const tasks = getColumnTasks(column.id);
     const isCollapsed = collapsed[column.id];
     
-      return (
+    console.log(`CategoryKanbanBoard renderColumn: ${column.id}, isCollapsed: ${isCollapsed}, tasks count: ${tasks?.length || 0}`);
+    
+    return (
       <div key={column.id} className="flex-shrink-0">
         <Droppable droppableId={column.id} type="TASK">
           {(provided, snapshot) => (
@@ -1275,48 +1297,87 @@ export default function CategoryKanbanBoard({
               ref={provided.innerRef}
               {...provided.droppableProps}
               data-droppable-id={column.id}
-              className={`drop-zone flex flex-col min-w-[320px] max-w-[380px] h-[calc(100vh-160px)] rounded-lg border p-0 transition-all duration-200 relative bg-gray-50 ${
+              className={`drop-zone flex flex-col rounded-lg border p-0 transition-all duration-200 relative bg-gray-50 ${
                 snapshot.isDraggingOver ? 'drag-over' : ''
+              } ${
+                isCollapsed 
+                  ? 'min-w-[72px] max-w-[72px] h-[300px] cursor-pointer' 
+                  : 'min-w-[320px] max-w-[380px] h-[calc(100vh-160px)]'
               }`}
               style={{
                 borderWidth: snapshot.isDraggingOver ? '2px' : '1px',
                 borderStyle: 'solid',
               }}
+              onClick={isCollapsed ? () => setCollapsed(prev => ({ ...prev, [column.id]: false })) : undefined}
             >
-          <div className="flex items-center justify-between mb-0 px-4 pt-3 pb-2 group">
-                <div className="flex items-center gap-1 group/header">
-                  <div className="flex items-center gap-2 group/column-header">
-                  <div>
-                    <h3 className="font-medium text-xs text-[#1c2024]">{column.title || column.id}</h3>
+              {isCollapsed ? (
+                // Collapsed state - similar to KanbanBoard
+                <div className="flex flex-col items-center justify-center w-full h-full pt-8 pb-4 group/collapsed">
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="font-medium text-xs text-[#1c2024] mb-2 text-center" style={{ writingMode: "vertical-rl", textOrientation: "mixed", letterSpacing: "0.05em" }}>
+                      {column.title || column.id}
+                    </span>
+                    
+                    <div className="flex flex-col items-center gap-2 mb-3">
+                      <span className="bg-white text-black text-xs font-semibold rounded-xl px-4 py-1 shadow border border-gray-200 text-center">
+                        {tasks ? tasks.length : 0}
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-col items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCollapsed(prev => ({ ...prev, [column.id]: false }));
+                        }}
+                        className="h-6 w-6 p-0 opacity-0 group-hover/collapsed:opacity-100 transition-opacity"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Badge className="text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center">{tasks ? tasks.length : 0}</Badge>
-            </div>
-                  </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }))}
-                    className="h-6 w-6 p-0"
-                  >
-                    {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </Button>
-            </div>
-          </div>
-
-              {!isCollapsed && (
-                <div className="space-y-3 px-4 pb-4">
-                  {tasks && tasks.length > 0 ? tasks.map((task, index) => renderTaskCard(task, false, index)) : (
-                    <div className="text-xs text-gray-400 flex-1 flex items-center justify-center">No tasks</div>
-                  )}
-                  {provided.placeholder}
-                           </div>
-                         )}
                 </div>
+              ) : (
+                // Expanded state
+                <>
+                  <div className="flex items-center justify-between mb-0 px-4 pt-3 pb-2 group">
+                    <div className="flex items-center gap-1 group/header">
+                      <div className="flex items-center gap-2 group/column-header">
+                        <div>
+                          <h3 className="font-medium text-xs text-[#1c2024]">{column.title || column.id}</h3>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Badge className="text-xs px-2 py-0.5 h-5 min-w-5 flex items-center justify-center">
+                          {tasks ? tasks.length : 0}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCollapsed(prev => ({ ...prev, [column.id]: !prev[column.id] }))}
+                        className="h-6 w-6 p-0"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 px-4 pb-4">
+                    {tasks && tasks.length > 0 ? tasks.map((task, index) => renderTaskCard(task, false, index)) : (
+                      <div className="text-xs text-gray-400 flex-1 flex items-center justify-center">No tasks</div>
+                    )}
+                    {provided.placeholder}
+                  </div>
+                </>
               )}
-            </Droppable>
+            </div>
+          )}
+        </Droppable>
       </div>
     );
   };
@@ -1628,7 +1689,7 @@ export default function CategoryKanbanBoard({
             onMouseLeave={e => e.currentTarget.classList.remove('kanban-scroll-hover')}
           >
             <div className="kanban-scrollbar flex gap-3 min-h-[700px] overflow-x-auto horizontal-hover-scrollbar">
-              {displayGroups.filter(group => group).map(renderColumn)}
+              {displayGroups.filter((group: any) => group).map(renderColumn)}
                       </div>
           </div>
               </div>

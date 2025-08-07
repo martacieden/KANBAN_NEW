@@ -856,7 +856,12 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   setFilteredTasksFromAllTasks,
 }, ref) => {
   // Use a consistent "now" time to prevent hydration mismatches
-  const [now] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
+  
+  // Set now time after component mounts to avoid hydration mismatch
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
   
   const [tasks, setTasks] = useState(initialTasks);
   const [draggedTask, setDraggedTask] = useState<null | any>(null);
@@ -1048,25 +1053,27 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
   const isStalled = (task: any) => {
     // Task is stalled if it hasn't been updated for 7+ days
+    if (!now) return false;
     const lastUpdated = task.lastStatusChange || task.createdAt || now.toISOString();
     const daysDiff = Math.floor((now.getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
     return daysDiff >= 7;
   };
 
   const isOverdue = (task: any) => {
-    if (!task.dueDate) return false;
+    if (!task.dueDate || !now) return false;
     const dueDate = new Date(task.dueDate);
     return dueDate < now;
   };
 
   const isDueSoon = (task: any) => {
-    if (!task.dueDate) return false;
+    if (!task.dueDate || !now) return false;
     const dueDate = new Date(task.dueDate);
     const daysDiff = Math.floor((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     return daysDiff >= 0 && daysDiff <= 3; // Due within 3 days
   };
 
   const isRecentlyUpdated = (task: any) => {
+    if (!now) return false;
     const lastUpdated = task.lastStatusChange || task.createdAt || now.toISOString();
     const daysDiff = Math.floor((now.getTime() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24));
     return daysDiff <= 1; // Updated within 1 day
@@ -1335,11 +1342,11 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
   // Task management functions
   const archiveTask = (taskId: string) => {
-    setTasks(prev => 
-      prev.map(t => 
-        t.id === taskId ? { ...t, archived: true, archivedAt: now.toISOString() } : t
-      )
-    );
+          setTasks(prev => 
+        prev.map(t => 
+          t.id === taskId ? { ...t, archived: true, archivedAt: now?.toISOString() || new Date().toISOString() } : t
+        )
+      );
   };
 
   const unarchiveTask = (taskId: string) => {
@@ -2454,8 +2461,17 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
   // Functions for expand/collapse all groups
   const expandAllGroups = () => {
+    console.log(`expandAllGroups called for category: ${activeCategory}`);
     const newCollapsed: Record<string, boolean> = {};
-    orderedStatuses.forEach(status => {
+    
+    // Використовуємо правильний набір статусів залежно від категорії
+    const statusesToProcess = shouldShowStatuses(activeCategory) 
+      ? orderedStatuses 
+      : columnOrder.map(id => findStatusById(id)).filter(Boolean);
+    
+    console.log(`Processing ${statusesToProcess.length} statuses for expand:`, statusesToProcess.map(s => s?.id));
+    
+    statusesToProcess.forEach(status => {
       if (status) {
         newCollapsed[status.id] = false;
       }
@@ -2470,13 +2486,23 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     });
     setExpandedSubtasks(newExpandedSubtasks);
     
+    console.log(`Expanded ${Object.keys(newExpandedSubtasks).length} subtasks`);
     toast.success("All groups expanded and subtasks grouped");
     if (onExpandAll) onExpandAll();
   };
 
   const collapseAllGroups = () => {
+    console.log(`collapseAllGroups called for category: ${activeCategory}`);
     const newCollapsed: Record<string, boolean> = {};
-    orderedStatuses.forEach(status => {
+    
+    // Використовуємо правильний набір статусів залежно від категорії
+    const statusesToProcess = shouldShowStatuses(activeCategory) 
+      ? orderedStatuses 
+      : columnOrder.map(id => findStatusById(id)).filter(Boolean);
+    
+    console.log(`Processing ${statusesToProcess.length} statuses for collapse:`, statusesToProcess.map(s => s?.id));
+    
+    statusesToProcess.forEach(status => {
       if (status) {
         newCollapsed[status.id] = true;
       }
@@ -2486,6 +2512,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     // Collapse all subtasks
     setExpandedSubtasks({});
     
+    console.log(`Collapsed all subtasks`);
     toast.success("All groups collapsed and subtasks ungrouped");
     if (onCollapseAll) onCollapseAll();
   };

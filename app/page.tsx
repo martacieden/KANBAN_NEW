@@ -18,6 +18,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Paperclip, User, Share as ShareIcon, Copy, Archive, Users, Shield, FileText, X } from "lucide-react";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import TaskPreview from "../components/TaskPreview";
+import CategoryGroupSettingsModal from "../components/CategoryGroupSettingsModal";
+import { CategorySettingsProvider } from "../contexts/CategorySettingsContext";
 import { Task, ColumnField, CardFields, ColumnWidths, TaskCategory } from "../types";
 
 // Функція для генерації унікального кольору на основі тексту
@@ -47,6 +49,14 @@ function generateColorFromText(text: string): string {
 }
 
 export default function Page() {
+  return (
+    <CategorySettingsProvider>
+      <PageContent />
+    </CategorySettingsProvider>
+  );
+}
+
+function PageContent() {
   // Define fields for Kanban cards
   const KANBAN_CARD_FIELDS = [
     { key: "title", label: "Name", pinned: true },
@@ -437,7 +447,13 @@ export default function Page() {
                                      Card settings
                                    </button>
                                    <button
-                                     onClick={() => setSettingsType('group')}
+                                     onClick={() => {
+                                       setSettingsType('group');
+                                       setShowSettings(false);
+                                       setTimeout(() => {
+                                         setShowSettings(true);
+                                       }, 100);
+                                     }}
                                      className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                                        settingsType === 'group'
                                          ? 'bg-white text-gray-900 shadow-sm'
@@ -486,7 +502,7 @@ export default function Page() {
                                         aria-checked={cardFields[field.key] !== false} 
                                         data-state={cardFields[field.key] !== false ? 'checked' : 'unchecked'} 
                                         value="on" 
-                                        className="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60 bg-gray-100 border-gray-200 disabled:bg-gray-200 data-[state=checked]:bg-gray-400"
+                                        className="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60 bg-gray-100 border-gray-200 disabled:bg-gray-200 data-[state=checked]:bg-gray-200"
                                         disabled={field.pinned}
                                         onClick={() => {
                                           if (!field.pinned) {
@@ -499,7 +515,7 @@ export default function Page() {
                                       >
                                         <span data-state={cardFields[field.key] !== false ? 'checked' : 'unchecked'} className="pointer-events-none h-5 w-5 rounded-full shadow ring-0 transition-colors flex items-center justify-center border-2 data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-white data-[state=checked]:border-blue-600 data-[state=unchecked]:border-gray-300 disabled:bg-gray-200 disabled:border-gray-200 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0">
                                           <span className="transition-opacity duration-150 flex items-center justify-center data-[state=checked]:opacity-100 data-[state=unchecked]:opacity-0">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check w-3.5 h-3.5 leading-none mt-px text-white">
+                                                                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check w-3.5 h-3.5 leading-none mt-px text-white">
                                               <path d="M20 6 9 17l-5-5"></path>
                                             </svg>
                                           </span>
@@ -567,7 +583,7 @@ export default function Page() {
                                            aria-checked={enabledGroups[group.id]} 
                                            data-state={enabledGroups[group.id] ? 'checked' : 'unchecked'} 
                                            value="on" 
-                                           className="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60 bg-gray-100 border-gray-200 disabled:bg-gray-200 data-[state=checked]:bg-gray-400"
+                                           className="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60 bg-gray-100 border-gray-200 disabled:bg-gray-200 data-[state=checked]:bg-gray-200"
                                            onClick={() => handleToggleGroup(group.id)}
                                          >
                                            <span data-state={enabledGroups[group.id] ? 'checked' : 'unchecked'} className="pointer-events-none h-5 w-5 rounded-full shadow ring-0 transition-colors flex items-center justify-center border-2 data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-white data-[state=checked]:border-blue-600 data-[state=unchecked]:border-gray-300 disabled:bg-gray-200 disabled:border-gray-200 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0">
@@ -671,8 +687,6 @@ export default function Page() {
                     onTaskClick={setSelectedTask}
                     onTaskUpdate={handleCategoryTaskUpdate}
                     onFiltersChange={updateFiltersCount}
-                    groupOrder={columnOrder}
-                    enabledGroups={enabledGroups}
                     cardFields={cardFields}
                   />
                 )
@@ -746,6 +760,16 @@ export default function Page() {
         )}
       </div>
       <CreateTaskModal open={showCreateModal} onOpenChange={setShowCreateModal} defaultStatus={modalStatus} />
+      <CategoryGroupSettingsModal 
+        open={showSettings && settingsType === 'group'}
+        onOpenChange={(open) => {
+          setShowSettings(open);
+          if (!open) {
+            setSettingsType('card'); // Скидаємо тип налаштувань при закритті
+          }
+        }}
+        activeCategory={activeCategory}
+      />
     </div>
   );
 }
