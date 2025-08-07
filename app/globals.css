@@ -240,4 +240,56 @@
       box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     }
   }
+
+  /* Enhanced animations for task movement between groups */
+  .task-moved-animation {
+    animation: taskMoved 1s ease-in-out;
+  }
+
+  @keyframes taskMoved {
+    0% { 
+      transform: scale(1); 
+      opacity: 1; 
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    25% { 
+      transform: scale(1.02); 
+      opacity: 0.9; 
+      box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+    }
+    50% { 
+      transform: scale(1.05); 
+      opacity: 0.8; 
+      box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.4);
+    }
+    75% { 
+      transform: scale(1.02); 
+      opacity: 0.9; 
+      box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+    }
+    100% { 
+      transform: scale(1); 
+      opacity: 1; 
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  .group-transition-highlight {
+    animation: groupTransition 0.8s ease-in-out;
+  }
+
+  @keyframes groupTransition {
+    0% { 
+      background-color: rgba(59, 130, 246, 0.1);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+    50% { 
+      background-color: rgba(59, 130, 246, 0.2);
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+    100% { 
+      background-color: transparent;
+      border-color: transparent;
+    }
+  }
 }

@@ -18,6 +18,17 @@ import TaskActionButtons from "./TaskActionButtons";
 // smart-drop-menu: removed SmartDropMenu import
 import React from "react";
 import { FixedSizeList as List } from 'react-window';
+import { 
+  GLOBAL_STAGE_MAPPING, 
+  mapStatusToGlobalStage, 
+  mapGlobalStageToStatuses 
+} from '../config/task-mapping';
+import { 
+  syncCategoryStatusChange,
+  syncGlobalStatusChange,
+  validateStatusTransition,
+  getMappingInfo
+} from '../lib/task-mapping-utils';
 
 // Types for Smart Preview functionality
 
@@ -124,14 +135,29 @@ const allowedTransitions: Record<string, string[]> = {
   "closed": ["in_progress", "to_do"],
 };
 
-// Function to get status group
+// Function to get status group - Updated to use global stage mapping
 const getStatusGroup = (statusId: string): string => {
-  // Use stage mapping from updated mock tasks data
+  console.log(`getStatusGroup called for statusId: ${statusId}`);
+  
+  // Use global stage mapping from config
+  for (const [stage, statuses] of Object.entries(GLOBAL_STAGE_MAPPING)) {
+    console.log(`Checking stage ${stage} with statuses: ${statuses.join(', ')}`);
+    if (statuses.includes(statusId)) {
+      console.log(`Found status ${statusId} in stage ${stage}`);
+      return stage.toUpperCase();
+    }
+  }
+  
+  // Fallback to stage mapping from updated mock tasks data
   for (const [group, statuses] of Object.entries(updatedMockTasks.stage_mapping)) {
+    console.log(`Checking fallback group ${group} with statuses: ${(statuses as string[]).join(', ')}`);
     if ((statuses as string[]).includes(statusId)) {
+      console.log(`Found status ${statusId} in fallback group ${group}`);
       return group.toUpperCase();
     }
   }
+  
+  console.log(`Status ${statusId} not found in any mapping, using default CREATED`);
   return 'CREATED'; // Default fallback
 };
 
@@ -598,51 +624,7 @@ const generateAdditionalTasks = () => {
 // Combine original tasks with generated ones
 const initialTasks = [
   ...originalTasks,
-  ...generateAdditionalTasks(),
-  // Add test task with subtasks in draft status for testing
-  {
-    id: "test-draft-task",
-    taskId: "TEST-001",
-    title: "Test Draft Task with Subtasks",
-    category: "Budget",
-    status: "draft",
-    stage: "Created",
-    priority: "High",
-    assignee: { name: "Test User", initials: "TU", department: "Test" },
-    teamMembers: [
-      { name: "Test User", initials: "TU", avatarUrl: "https://randomuser.me/api/portraits/men/1.jpg" }
-    ],
-    subtasks: [
-      {
-        id: "test-subtask-1",
-        taskId: "TEST-001-1",
-        title: "Test Subtask 1",
-        status: "draft",
-        category: "Budget",
-        assignee: { name: "Test User", initials: "TU", department: "Test" },
-        dueDate: "2024-12-15"
-      },
-      {
-        id: "test-subtask-2",
-        taskId: "TEST-001-2",
-        title: "Test Subtask 2",
-        status: "draft",
-        category: "Budget",
-        assignee: { name: "Test User", initials: "TU", department: "Test" },
-        dueDate: "2024-12-20"
-      }
-    ],
-    tags: ["test", "draft"],
-    dueDate: "2024-12-30",
-    progress: 0,
-    department: "Test",
-    type: "Task",
-    clientInfo: "Test Client",
-    description: "This is a test task with subtasks in draft status to test the subtask expansion functionality.",
-    attachmentCount: 0,
-    commentCount: 0,
-    lastStatusChange: "2024-11-15T10:00:00Z"
-  }
+  ...generateAdditionalTasks()
 ];
 
 export { initialTasks };
@@ -859,6 +841,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   onCollapseAll?: () => void,
   onFiltersChange?: (count: number) => void,
   activeCategory?: string,
+  setFilteredTasksFromAllTasks?: (tasks: any[]) => void,
 }>(({
   showSettings: showSettingsProp,
   setShowSettings: setShowSettingsProp,
@@ -870,6 +853,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
   onCollapseAll,
   onFiltersChange,
   activeCategory = "All tasks",
+  setFilteredTasksFromAllTasks,
 }, ref) => {
   // Use a consistent "now" time to prevent hydration mismatches
   const [now] = useState(() => new Date());
@@ -1329,6 +1313,13 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     return filtered;
   }, [tasks, debouncedSearch, showArchived, agingFilter, quickFilters, activeCategory]);
 
+  // Callback to notify parent component of filtered tasks (for category sync)
+  useEffect(() => {
+    if (setFilteredTasksFromAllTasks && activeCategory === "All tasks") {
+      setFilteredTasksFromAllTasks(filteredTasks);
+    }
+  }, [filteredTasks, setFilteredTasksFromAllTasks, activeCategory]);
+
   // Memoized column tasks for better performance
   const memoizedColumnTasks = useMemo(() => {
     const result: Record<string, any[]> = {};
@@ -1507,13 +1498,17 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     console.log(`Status group for ${status}: ${statusGroup}`);
     
     // For category-specific pages, filter by exact status match
-    // For "All tasks" page, filter by status group
+    // For "All tasks" page, filter by status group using global stage mapping
     const parentTasksInStatus = filteredTasks.filter(t => {
       let matches;
       if (activeCategory === "All tasks") {
-        // On "All tasks" page, show tasks by status group
-        const taskGroup = getStatusGroup(t.status);
-        matches = taskGroup === statusGroup;
+        // On "All tasks" page, show tasks by global stage mapping
+        const globalStage = mapStatusToGlobalStage(t.status);
+        const expectedStage = mapStatusToGlobalStage(status);
+        matches = globalStage === expectedStage;
+        
+        // Debug logging for global stage mapping
+        console.log(`Task ${t.id} (${t.title}): status=${t.status}, globalStage=${globalStage}, expectedStage=${expectedStage}, matches=${matches}`);
       } else {
         // On category pages, show tasks by exact status match
         matches = t.status === status;
@@ -1586,8 +1581,14 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
     
     console.log(`Drag operation: ${type}, from ${source.droppableId} to ${destination.droppableId}`);
     
-    // Handle column reordering
+    // Handle column reordering - disabled for "All tasks" page
     if (type === "COLUMN") {
+      // Disable column reordering on "All tasks" page
+      if (activeCategory === "All tasks") {
+        toast.error("Column reordering is not available on the All tasks page");
+        return;
+      }
+      
       if (destination.droppableId === source.droppableId && destination.index === source.index) return;
       
       // Update the appropriate order based on category
@@ -1716,7 +1717,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
       
       console.log(`Checking transition: ${task.status} -> ${destination.droppableId} (parent: ${parentStatus})`);
       
-      if (!isValidTransition(task.status, destination.droppableId, parentStatus)) {
+      // Use new validation function with category context
+      if (!validateStatusTransition(task.status, destination.droppableId, activeCategory)) {
         const fromStatus = findStatusById(task.status)?.title || task.status;
         const toStatus = findStatusById(destination.droppableId)?.title || destination.droppableId;
         
@@ -1731,13 +1733,23 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
         return;
       }
       
-      // Update task status with optimistic update
+      // Update task status with optimistic update and global stage mapping
       if (isSubtask) {
         console.log(`Moving subtask ${draggableId} from ${task.status} to ${destination.droppableId}`);
+        
+        // Map destination status to appropriate global status
+        let newStatus = destination.droppableId;
+        if (activeCategory === "All tasks") {
+          // For All Tasks, map the global stage to an appropriate status
+          const globalStage = mapStatusToGlobalStage(destination.droppableId);
+          const availableStatuses = mapGlobalStageToStatuses(globalStage);
+          newStatus = availableStatuses[0] || destination.droppableId;
+        }
+        
         setTasks(prev => {
           const newTasks = prev.map(t => ({
             ...t,
-            subtasks: t.subtasks ? t.subtasks.map((st: any) => st.id === draggableId ? { ...st, status: destination.droppableId } : st) : [],
+            subtasks: t.subtasks ? t.subtasks.map((st: any) => st.id === draggableId ? { ...st, status: newStatus } : st) : [],
           }));
           console.log(`Updated tasks state:`, newTasks.map(t => ({ id: t.id, subtasks: t.subtasks?.map((st: any) => ({ id: st.id, status: st.status })) })));
           return newTasks;
@@ -1761,8 +1773,18 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
         });
       } else {
         console.log(`Moving task ${draggableId} from ${task.status} to ${destination.droppableId}`);
+        
+        // Map destination status to appropriate global status
+        let newStatus = destination.droppableId;
+        if (activeCategory === "All tasks") {
+          // For All Tasks, map the global stage to an appropriate status
+          const globalStage = mapStatusToGlobalStage(destination.droppableId);
+          const availableStatuses = mapGlobalStageToStatuses(globalStage);
+          newStatus = availableStatuses[0] || destination.droppableId;
+        }
+        
         setTasks(prev => {
-          const newTasks = prev.map(t => t.id === draggableId ? { ...t, status: destination.droppableId } : t);
+          const newTasks = prev.map(t => t.id === draggableId ? { ...t, status: newStatus } : t);
           console.log(`Updated tasks state:`, newTasks.map(t => ({ id: t.id, status: t.status })));
           return newTasks;
         });
@@ -2532,7 +2554,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                 onClick={() => setCollapsed(c => ({ ...c, [column.id]: false }))}
                               >
                                 {/* Drag handle for collapsed column - positioned above */}
-                                {shouldShowStatuses(activeCategory) && (
+                                {shouldShowStatuses(activeCategory) && activeCategory !== "All tasks" && (
                                   <div
                                     {...draggableProvided.dragHandleProps}
                                     className="absolute -top-1 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab p-1 rounded hover:bg-gray-100 bg-white shadow-sm border border-gray-200"
@@ -2672,7 +2694,7 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
 
                                   <div className="relative group">
                                     {/* Drag handle for column reordering - positioned above the header */}
-                                    {shouldShowStatuses(activeCategory) && (
+                                    {shouldShowStatuses(activeCategory) && activeCategory !== "All tasks" && (
                                       <div
                                         {...draggableProvided.dragHandleProps}
                                         className="absolute -top-1 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab p-1 rounded hover:bg-gray-100 bg-white shadow-sm border border-gray-200"

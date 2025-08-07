@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -101,10 +101,71 @@ export default function Page() {
     });
     return obj;
   });
+
+  // State to track filtered tasks from All Tasks view
+  const [filteredTasksFromAllTasks, setFilteredTasksFromAllTasks] = useState<any[]>([]);
+
   const [showSettings, setShowSettings] = useState(false);
   const [settingsSearch, setSettingsSearch] = useState("");
+  const [settingsType, setSettingsType] = useState<'card' | 'group'>('card');
+  
+  // Group settings state
+  const [enabledGroups, setEnabledGroups] = useState<Record<string, boolean>>({
+    CREATED: true,
+    ACTIVE: true,
+    PAUSED: true,
+    COMPLETED: true,
+    REJECTED: true
+  });
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  
+  // Status groups definition
+  const statusGroups = [
+    { id: 'CREATED', title: 'Created', subtitle: 'Not started yet' },
+    { id: 'ACTIVE', title: 'Active', subtitle: 'In progress' },
+    { id: 'PAUSED', title: 'Paused', subtitle: 'Temporarily paused' },
+    { id: 'COMPLETED', title: 'Completed', subtitle: 'Successfully completed' },
+    { id: 'REJECTED', title: 'Rejected', subtitle: 'Rejected or canceled' }
+  ];
+  
+  // Group settings functions
+  const handleToggleGroup = (groupId: string) => {
+    setEnabledGroups(prev => ({
+      ...prev,
+      [groupId]: !prev[groupId]
+    }));
+  };
+  
+  const moveGroup = (groupId: string, direction: 'up' | 'down') => {
+    const currentIndex = columnOrder.indexOf(groupId);
+    if (currentIndex === -1) return;
+    
+    const newOrder = [...columnOrder];
+    if (direction === 'up' && currentIndex > 0) {
+      [newOrder[currentIndex], newOrder[currentIndex - 1]] = [newOrder[currentIndex - 1], newOrder[currentIndex]];
+    } else if (direction === 'down' && currentIndex < newOrder.length - 1) {
+      [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
+    }
+    
+    setColumnOrder(newOrder);
+  };
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState("All tasks");
+  
+  // Debug logging for task counts
+  useEffect(() => {
+    console.log(`=== TASK COUNT DEBUG ===`);
+    console.log(`All tasks count: ${kanbanInitialTasks.length}`);
+    console.log(`Filtered tasks from All Tasks: ${filteredTasksFromAllTasks.length}`);
+    console.log(`Active category: ${activeCategory}`);
+    if (activeCategory !== "All tasks") {
+      const categoryTasks = filteredTasksFromAllTasks.length > 0 
+        ? filteredTasksFromAllTasks.filter(task => task.category === activeCategory)
+        : kanbanInitialTasks.filter(task => task.category === activeCategory);
+      console.log(`Category "${activeCategory}" tasks: ${categoryTasks.length}`);
+    }
+    console.log(`=== END TASK COUNT DEBUG ===`);
+  }, [filteredTasksFromAllTasks, activeCategory, kanbanInitialTasks.length]);
   
   // Calculate task counts for each category
   const getTaskCount = (category: string) => {
@@ -130,6 +191,8 @@ export default function Page() {
     setSelectedTask(null);
     // Очищати вибрані задачі
     setSelectedTasks(new Set());
+    // Reset settings type when switching categories
+    setSettingsType('card');
   };
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [modalStatus, setModalStatus] = useState<string | undefined>(undefined);
@@ -165,18 +228,35 @@ export default function Page() {
 
   // Функція для оновлення selectedTask коли завдання змінюється в KanbanBoard
   const handleTaskUpdate = (updatedTask: any) => {
-    console.log('handleTaskUpdate called with:', updatedTask);
-    console.log('current selectedTask:', selectedTask);
+    console.log('🔄 handleTaskUpdate called with:', updatedTask);
+    console.log('📋 current selectedTask:', selectedTask);
+    
+    // КРИТИЧНО ВАЖЛИВА ЛОГІКА: Оновлюємо завдання в глобальному стані
+    if (updatedTask && updatedTask.id) {
+      console.log(`✅ Updating task ${updatedTask.id} with new status: ${updatedTask.status}`);
+      
+      // Оновлюємо завдання в filteredTasksFromAllTasks масиві
+      setFilteredTasksFromAllTasks(prevTasks => {
+        const updatedTasks = prevTasks.map((task: any) => 
+          task.id === updatedTask.id 
+            ? { ...task, ...updatedTask }
+            : task
+        );
+        console.log(`📊 Tasks updated. New count: ${updatedTasks.length}`);
+        return updatedTasks;
+      });
+    }
+    
     if (selectedTask) {
       // Перевіряємо як основне завдання, так і підзавдання
       if (selectedTask.id === updatedTask.id) {
-        console.log('Updating selectedTask with new status:', updatedTask.status);
+        console.log('🎯 Updating selectedTask with new status:', updatedTask.status);
         setSelectedTask(updatedTask);
       } else if (selectedTask.subtasks) {
         // Перевіряємо чи оновлене завдання є підзавданням поточного selectedTask
         const hasMatchingSubtask = selectedTask.subtasks.some((subtask: any) => subtask.id === updatedTask.id);
         if (hasMatchingSubtask) {
-          console.log('Updating subtask in selectedTask');
+          console.log('🔧 Updating subtask in selectedTask');
           const updatedSelectedTask = {
             ...selectedTask,
             subtasks: selectedTask.subtasks.map((subtask: any) => 
@@ -187,6 +267,33 @@ export default function Page() {
           };
           setSelectedTask(updatedSelectedTask);
         }
+      }
+    }
+  };
+
+  // Функція для оновлення завдань в CategoryKanbanBoard
+  const handleCategoryTaskUpdate = (taskId: string, updates: any) => {
+    console.log('🔄 handleCategoryTaskUpdate called with taskId:', taskId, 'updates:', updates);
+    
+    // КРИТИЧНО ВАЖЛИВА ЛОГІКА: Оновлюємо завдання в глобальному стані
+    if (taskId && updates) {
+      console.log(`✅ Updating task ${taskId} with updates:`, updates);
+      
+      // Оновлюємо завдання в filteredTasksFromAllTasks масиві
+      setFilteredTasksFromAllTasks(prevTasks => {
+        const updatedTasks = prevTasks.map((task: any) => 
+          task.id === taskId 
+            ? { ...task, ...updates }
+            : task
+        );
+        console.log(`📊 Tasks updated. New count: ${updatedTasks.length}`);
+        return updatedTasks;
+      });
+      
+      // Оновлюємо selectedTask якщо потрібно
+      if (selectedTask && selectedTask.id === taskId) {
+        console.log('🎯 Updating selectedTask with new status:', updates.status);
+        setSelectedTask({ ...selectedTask, ...updates });
       }
     }
   };
@@ -301,13 +408,7 @@ export default function Page() {
                         )}
                       </Button>
                       
-                      {/* Active Category Indicator */}
-                      {activeCategory !== "All tasks" && (
-                        <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg border border-blue-200">
-                          <span className="text-xs font-medium text-blue-700">Category:</span>
-                          <span className="text-xs font-semibold text-blue-800">{activeCategory}</span>
-                        </div>
-                      )}
+
                       <Popover open={showSettings} onOpenChange={setShowSettings}>
                         <PopoverTrigger asChild>
                           <Button variant="ghost" size="sm" className="text-xs text-[#60646c] h-8 px-2">
@@ -316,69 +417,174 @@ export default function Page() {
                               ? `${getCurrentFields().filter(f => cardFields[f.key] !== false).length}/${getCurrentFields().length} columns`
                               : 'View setting'
                             }
+                            {activeCategory !== "All tasks" && (
+                              <ChevronDown className="w-3 h-3 ml-1" />
+                            )}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent align="start" className="w-64 p-3 rounded-xl shadow-lg border border-[#e8e8ec] bg-white mt-2 max-h-[60vh] flex flex-col">
-                          <div className="relative mb-3">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                            <Input
-                              placeholder="Search"
-                              className="pl-10 bg-[#f9f9fb] border-[#e8e8ec] h-8 text-sm"
-                              value={settingsSearch}
-                              onChange={e => setSettingsSearch(e.target.value)}
-                            />
-                          </div>
-                          {/* Scrollable content area */}
-                          <div className="flex-1 overflow-y-auto min-h-0 space-y-1 pr-1">
-                            {/* Show all available fields based on current view */}
-                            {getCurrentFields()
-                              .filter(field => field.key === 'divider' || field.label.toLowerCase().includes(settingsSearch.toLowerCase()))
-                              .map((field, idx) => (
-                                <div key={field.key}>
-                                  {field.key === 'divider' ? (
-                                    <div className="border-t border-gray-200 my-1"></div>
-                                  ) : (
-                                    <div className="flex items-center justify-between py-0.5">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-sm text-[#1c2024]">{field.label}</span>
-                                        {field.pinned && (
-                                          <Badge variant="secondary" className="text-xs px-1 py-0 bg-gray-100 text-gray-600">
-                                            Required
-                                          </Badge>
-                                        )}
-                                      </div>
-                                      <Switch
-                                        checked={cardFields[field.key] !== false}
+                                                       {activeCategory !== "All tasks" && (
+                               <div className="mb-3">
+                                 <div className="flex rounded-lg border p-1 bg-gray-100">
+                                   <button
+                                     onClick={() => setSettingsType('card')}
+                                     className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                       settingsType === 'card'
+                                         ? 'bg-white text-gray-900 shadow-sm'
+                                         : 'text-gray-600 hover:text-gray-900'
+                                     }`}
+                                   >
+                                     Card settings
+                                   </button>
+                                   <button
+                                     onClick={() => setSettingsType('group')}
+                                     className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                       settingsType === 'group'
+                                         ? 'bg-white text-gray-900 shadow-sm'
+                                         : 'text-gray-600 hover:text-gray-900'
+                                     }`}
+                                   >
+                                     Group settings
+                                   </button>
+                                 </div>
+                               </div>
+                             )}
+                          
+                          {settingsType === 'card' ? (
+                            <>
+                              <div className="relative mb-3">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <Input
+                                  placeholder="Search"
+                                  className="pl-10 bg-[#f9f9fb] border-[#e8e8ec] h-8 text-sm"
+                                  value={settingsSearch}
+                                  onChange={e => setSettingsSearch(e.target.value)}
+                                />
+                              </div>
+                              {/* Scrollable content area */}
+                              <div className="flex-1 overflow-y-auto min-h-0 space-y-1 pr-1">
+                                {/* Show all available fields based on current view */}
+                                {getCurrentFields()
+                                  .filter(field => field.key === 'divider' || field.label.toLowerCase().includes(settingsSearch.toLowerCase()))
+                                  .map((field, idx) => (
+                                    <div key={field.key}>
+                                      {field.key === 'divider' ? (
+                                        <div className="border-t border-gray-200 my-1"></div>
+                                      ) : (
+                                        <div className="flex items-center justify-between py-0.5">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm text-[#1c2024]">{field.label}</span>
+                                            {field.pinned && (
+                                              <Badge variant="secondary" className="text-xs px-1 py-0 bg-gray-100 text-gray-600">
+                                                Required
+                                              </Badge>
+                                            )}
+                                          </div>
+                                                                                <button 
+                                        type="button" 
+                                        role="switch" 
+                                        aria-checked={cardFields[field.key] !== false} 
+                                        data-state={cardFields[field.key] !== false ? 'checked' : 'unchecked'} 
+                                        value="on" 
+                                        className="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60 bg-gray-100 border-gray-200 disabled:bg-gray-200 data-[state=checked]:bg-gray-400"
                                         disabled={field.pinned}
-                                        onCheckedChange={(checked) => {
+                                        onClick={() => {
                                           if (!field.pinned) {
                                             setCardFields(prev => ({
                                               ...prev,
-                                              [field.key]: checked
+                                              [field.key]: !prev[field.key]
                                             }));
                                           }
                                         }}
-                                      />
+                                      >
+                                        <span data-state={cardFields[field.key] !== false ? 'checked' : 'unchecked'} className="pointer-events-none h-5 w-5 rounded-full shadow ring-0 transition-colors flex items-center justify-center border-2 data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-white data-[state=checked]:border-blue-600 data-[state=unchecked]:border-gray-300 disabled:bg-gray-200 disabled:border-gray-200 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0">
+                                          <span className="transition-opacity duration-150 flex items-center justify-center data-[state=checked]:opacity-100 data-[state=unchecked]:opacity-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check w-3.5 h-3.5 leading-none mt-px text-white">
+                                              <path d="M20 6 9 17l-5-5"></path>
+                                            </svg>
+                                          </span>
+                                        </span>
+                                      </button>
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
-                              ))
-                            }
-                          </div>
-                          {/* Reset button - fixed at bottom */}
-                          <button
-                            className="mt-3 w-full py-1.5 rounded-md border border-[#e8e8ec] bg-[#f9f9fb] text-[#1c2024] font-medium hover:bg-[#f4f4f7] flex-shrink-0 text-sm"
-                            onClick={() => setCardFields(() => {
-                              const obj: Record<string, boolean> = {};
-                              getCurrentFields().forEach(f => {
-                                // Show all fields by default except Tags and divider
-                                obj[f.key] = f.key !== 'tags' && f.key !== 'divider';
-                              });
-                              return obj;
-                            })}
-                          >
-                            Reset to default
-                          </button>
+                                  ))
+                                }
+                              </div>
+                              {/* Reset button - fixed at bottom */}
+                              <button
+                                className="mt-3 w-full py-1.5 rounded-md border border-[#e8e8ec] bg-[#f9f9fb] text-[#1c2024] font-medium hover:bg-[#f4f4f7] flex-shrink-0 text-sm"
+                                onClick={() => setCardFields(() => {
+                                  const obj: Record<string, boolean> = {};
+                                  getCurrentFields().forEach(f => {
+                                    // Show all fields by default except Tags and divider
+                                    obj[f.key] = f.key !== 'tags' && f.key !== 'divider';
+                                  });
+                                  return obj;
+                                })}
+                              >
+                                Reset to default
+                              </button>
+                            </>
+                          ) : (
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                {statusGroups.map((group) => (
+                                  <div key={group.id} className="flex items-center justify-between p-2 rounded-lg border">
+                                    <div className="flex items-center gap-3">
+                                      <div>
+                                        <div className="text-sm font-medium">{group.title}</div>
+                                        <div className="text-xs text-gray-500">{group.subtitle}</div>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-1">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => moveGroup(group.id, 'up')}
+                                          disabled={columnOrder.indexOf(group.id) === 0}
+                                          className="h-6 w-6 p-0"
+                                        >
+                                          ↑
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => moveGroup(group.id, 'down')}
+                                          disabled={columnOrder.indexOf(group.id) === columnOrder.length - 1}
+                                          className="h-6 w-6 p-0"
+                                        >
+                                          ↓
+                                        </Button>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-2">
+                                                                                 <button 
+                                           type="button" 
+                                           role="switch" 
+                                           aria-checked={enabledGroups[group.id]} 
+                                           data-state={enabledGroups[group.id] ? 'checked' : 'unchecked'} 
+                                           value="on" 
+                                           className="peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60 bg-gray-100 border-gray-200 disabled:bg-gray-200 data-[state=checked]:bg-gray-400"
+                                           onClick={() => handleToggleGroup(group.id)}
+                                         >
+                                           <span data-state={enabledGroups[group.id] ? 'checked' : 'unchecked'} className="pointer-events-none h-5 w-5 rounded-full shadow ring-0 transition-colors flex items-center justify-center border-2 data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-white data-[state=checked]:border-blue-600 data-[state=unchecked]:border-gray-300 disabled:bg-gray-200 disabled:border-gray-200 data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0">
+                                             <span className="transition-opacity duration-150 flex items-center justify-center data-[state=checked]:opacity-100 data-[state=unchecked]:opacity-0">
+                                               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check w-3.5 h-3.5 leading-none mt-px text-white">
+                                                 <path d="M20 6 9 17l-5-5"></path>
+                                               </svg>
+                                             </span>
+                                           </span>
+                                         </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </PopoverContent>
                       </Popover>
                       <div className="relative">
@@ -456,13 +662,18 @@ export default function Page() {
                     onTaskClick={setSelectedTask}
                     onFiltersChange={updateFiltersCount}
                     activeCategory={activeCategory}
+                    setFilteredTasksFromAllTasks={setFilteredTasksFromAllTasks}
                   />
                 ) : (
                   <CategoryKanbanBoard
                     category={activeCategory}
-                    tasks={kanbanInitialTasks}
+                    tasks={filteredTasksFromAllTasks.length > 0 ? filteredTasksFromAllTasks : kanbanInitialTasks}
                     onTaskClick={setSelectedTask}
-                    onTaskUpdate={handleTaskUpdate}
+                    onTaskUpdate={handleCategoryTaskUpdate}
+                    onFiltersChange={updateFiltersCount}
+                    groupOrder={columnOrder}
+                    enabledGroups={enabledGroups}
+                    cardFields={cardFields}
                   />
                 )
               ) : (
@@ -510,7 +721,7 @@ export default function Page() {
                   )}
                   <div className="flex-1 overflow-hidden">
                     <TaskTable
-                      tasks={activeCategory === "All tasks" ? kanbanInitialTasks : kanbanInitialTasks.filter(task => task.category === activeCategory)}
+                      tasks={activeCategory === "All tasks" ? (filteredTasksFromAllTasks.length > 0 ? filteredTasksFromAllTasks : kanbanInitialTasks) : (filteredTasksFromAllTasks.length > 0 ? filteredTasksFromAllTasks.filter(task => task.category === activeCategory) : kanbanInitialTasks.filter(task => task.category === activeCategory))}
                       cardFields={cardFields}
                       onTaskClick={setSelectedTask}
                       onTaskUpdate={handleTaskUpdate}
