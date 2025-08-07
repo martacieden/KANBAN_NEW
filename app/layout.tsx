@@ -95,6 +95,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="twitter:image" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
         <meta property="og:image:url" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
         
+        {/* Агресивне блокування всіх зображень */}
+        <meta property="og:image:width" content="1" />
+        <meta property="og:image:height" content="1" />
+        <meta name="twitter:image:width" content="1" />
+        <meta name="twitter:image:height" content="1" />
+        <meta property="og:image:type" content="image/svg+xml" />
+        <meta name="twitter:image:alt" content="Gray background" />
+        <meta property="og:image:alt" content="Gray background" />
+        
+        {/* Додаткові теги для різних платформ */}
+        <meta property="og:image:secure_url" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
+        <meta name="twitter:image:src" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
+        
         {/* Додаємо сірий фон для превью */}
         <style dangerouslySetInnerHTML={{
           __html: `

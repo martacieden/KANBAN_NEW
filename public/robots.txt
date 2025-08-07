@@ -1,0 +1,24 @@
+User-agent: *
+Disallow: /*.jpg
+Disallow: /*.jpeg
+Disallow: /*.png
+Disallow: /*.gif
+Disallow: /*.svg
+Disallow: /*.webp
+Disallow: /*.ico
+
+# Дозволяємо індексацію основного контенту
+Allow: /
+
+# Блокуємо всі зображення
+User-agent: Googlebot-Image
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /*.jpg
+Disallow: /*.jpeg
+Disallow: /*.png
+Disallow: /*.gif
+Disallow: /*.svg
+Disallow: /*.webp
+Disallow: /*.ico 
