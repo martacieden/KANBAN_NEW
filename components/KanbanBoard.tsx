@@ -203,6 +203,25 @@ const isValidTransition = (fromStatus: string, toStatus: string, parentStatus?: 
     return true;
   }
   
+  // Блокуємо повернення до "To Do" з просунутих статусів
+  const advancedStatuses = [
+    "in_progress", "working", "ongoing", "doing", "assigned", 
+    "in_review", "scheduled", "approved", "done", "completed", 
+    "validated", "paid", "closed"
+  ];
+  
+  if (advancedStatuses.includes(fromStatus) && toStatus === "to_do") {
+    console.log(`Transition blocked: Cannot move from ${fromStatus} back to to_do`);
+    return false;
+  }
+  
+  // Блокуємо повернення до початкових статусів з просунутих
+  const initialStatuses = ["to_do", "draft", "new", "backlog", "requested"];
+  if (advancedStatuses.includes(fromStatus) && initialStatuses.includes(toStatus)) {
+    console.log(`Transition blocked: Cannot move from ${fromStatus} back to ${toStatus}`);
+    return false;
+  }
+  
   // Business logic: If parent task is rejected, subtask cannot move to certain statuses
   if (parentStatus === "rejected") {
     const blockedTransitions = ["to_do", "in_progress", "in_review", "approved"];
@@ -2547,6 +2566,9 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                 const columnTasks = getColumnTasks(column.id);
                 // Check workflow transitions for all categories
                 const isDropDisabled = draggedTask ? !isValidTransition(draggedTask.status, column.id) : false;
+                
+                // Додаткова логіка для показу неактивних колонок
+                const showDisabledState = draggedTask && isDropDisabled;
                 // Allow collapse/expand on all pages
                 const isCollapsed = collapsed[column.id] || false;
                 // For status-based categories, use status colors directly
@@ -2577,7 +2599,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                               <div
                                 ref={droppableProvided.innerRef}
                                 {...droppableProvided.droppableProps}
-                                className={`drop-zone flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-[300px] rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${droppableSnapshot.isDraggingOver ? 'drag-over' : ''} ${isDropDisabled && draggedTask ? "drop-disabled" : ""}`}
+                                className={`drop-zone flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-[300px] rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${droppableSnapshot.isDraggingOver ? 'drag-over' : ''} ${showDisabledState ? "drop-disabled" : ""}`}
+                                data-invalid-transition={showDisabledState && draggedTask ? `${draggedTask.status}-${column.id}` : undefined}
                                 onClick={() => setCollapsed(c => ({ ...c, [column.id]: false }))}
                               >
                                 {/* Drag handle for collapsed column - positioned above */}
@@ -2709,10 +2732,11 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                                   } ${
                                     droppableSnapshot.isDraggingOver ? 'drag-over' : ''
                                   } ${
-                                    isDropDisabled && draggedTask
+                                    showDisabledState
                                       ? "drop-disabled"
                                       : ""
                                   }`}
+                                  data-invalid-transition={showDisabledState && draggedTask ? `${draggedTask.status}-${column.id}` : undefined}
                                   style={{
                                     borderWidth: droppableSnapshot.isDraggingOver ? '2px' : '1px',
                                     borderStyle: 'solid',
@@ -2913,6 +2937,10 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
             const columnTasks = getColumnTasks(column.id);
             // Check workflow transitions for all categories
             const isDropDisabled = draggedTask ? !isValidTransition(draggedTask.status, column.id) : false;
+            
+            // Додаткова логіка для показу неактивних колонок
+            const showDisabledState = draggedTask && isDropDisabled;
+            
             // Allow collapse/expand on all pages
             const isCollapsed = collapsed[column.id] || false;
             // For status-based categories, use status colors directly
@@ -2936,7 +2964,8 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                           <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`drop-zone flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-[300px] rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${snapshot.isDraggingOver ? 'drag-over' : ''} ${isDropDisabled && draggedTask ? "drop-disabled" : ""}`}
+                            className={`drop-zone flex flex-col items-center justify-center min-w-[72px] max-w-[72px] h-[300px] rounded-lg border p-0 cursor-pointer select-none relative group ${groupColor} ${snapshot.isDraggingOver ? 'drag-over' : ''} ${showDisabledState ? "drop-disabled" : ""}`}
+                            data-invalid-transition={showDisabledState && draggedTask ? `${draggedTask.status}-${column.id}` : undefined}
                             onClick={() => setCollapsed(c => ({ ...c, [column.id]: false }))}
                           >
                             
@@ -2980,10 +3009,11 @@ const KanbanBoard = forwardRef<{ getActiveQuickFiltersCount: () => number }, {
                             } ${
                               snapshot.isDraggingOver ? 'drag-over' : ''
                             } ${
-                              isDropDisabled && draggedTask
+                              showDisabledState
                                 ? "drop-disabled"
                                 : ""
                             }`}
+                            data-invalid-transition={showDisabledState && draggedTask ? `${draggedTask.status}-${column.id}` : undefined}
                             style={{
                               borderWidth: snapshot.isDraggingOver ? '2px' : '1px',
                               borderStyle: 'solid',

@@ -87,6 +87,19 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Сірий фон для превью */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #f5f5f5;
+    z-index: -1;
+    pointer-events: none;
+  }
 }
 
 @layer components {
@@ -291,5 +304,123 @@
       background-color: transparent;
       border-color: transparent;
     }
+  }
+
+  /* Стилі для неактивних колонок при drag & drop */
+  .drop-disabled {
+    opacity: 0.6;
+    filter: grayscale(0.4);
+    background-color: rgba(156, 163, 175, 0.15) !important;
+    border-color: rgba(156, 163, 175, 0.4) !important;
+    cursor: not-allowed;
+    position: relative;
+    transform: scale(0.98);
+    transition: all 0.2s ease;
+  }
+
+  .drop-disabled::before {
+    content: "Cannot move here";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(220, 38, 38, 0.95);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 1000;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  /* Додаткова підказка для конкретних випадків */
+  .drop-disabled[data-invalid-transition="in_progress-to_do"]::before {
+    content: "Cannot move from In Progress to To Do";
+  }
+
+  .drop-disabled[data-invalid-transition="working-to_do"]::before {
+    content: "Cannot move from Working to To Do";
+  }
+
+  .drop-disabled[data-invalid-transition="ongoing-to_do"]::before {
+    content: "Cannot move from Ongoing to To Do";
+  }
+
+  .drop-disabled[data-invalid-transition="doing-to_do"]::before {
+    content: "Cannot move from Doing to To Do";
+  }
+
+  .drop-disabled[data-invalid-transition="assigned-to_do"]::before {
+    content: "Cannot move from Assigned to To Do";
+  }
+
+  .drop-disabled[data-invalid-transition="in_review-to_do"]::before {
+    content: "Cannot move from In Review to To Do";
+  }
+
+  .drop-disabled[data-invalid-transition="approved-to_do"]::before {
+    content: "Cannot move from Approved to To Do";
+  }
+
+  .drop-disabled[data-invalid-transition="done-to_do"]::before {
+    content: "Cannot move from Done to To Do";
+  }
+
+  .drop-disabled[data-invalid-transition="completed-to_do"]::before {
+    content: "Cannot move from Completed to To Do";
+  }
+
+  .drop-disabled[data-invalid-transition="validated-to_do"]::before {
+    content: "Cannot move from Validated to To Do";
+  }
+
+  .drop-disabled[data-invalid-transition="paid-to_do"]::before {
+    content: "Cannot move from Paid to To Do";
+  }
+
+  .drop-disabled[data-invalid-transition="closed-to_do"]::before {
+    content: "Cannot move from Closed to To Do";
+  }
+
+  /* Блокування повернення до інших початкових статусів */
+  .drop-disabled[data-invalid-transition="in_progress-draft"]::before {
+    content: "Cannot move from In Progress to Draft";
+  }
+
+  .drop-disabled[data-invalid-transition="in_progress-new"]::before {
+    content: "Cannot move from In Progress to New";
+  }
+
+  .drop-disabled[data-invalid-transition="in_progress-backlog"]::before {
+    content: "Cannot move from In Progress to Backlog";
+  }
+
+  .drop-disabled[data-invalid-transition="in_progress-requested"]::before {
+    content: "Cannot move from In Progress to Requested";
+  }
+
+  /* Загальна підказка для всіх випадків повернення до To Do */
+  .drop-disabled[data-invalid-transition*="-to_do"]::before {
+    content: "Cannot move back to To Do from this status";
+  }
+
+  .drop-disabled:hover::before {
+    opacity: 1;
+  }
+
+  /* Додаткові стилі для заголовків неактивних колонок */
+  .drop-disabled .kanban-column-header {
+    opacity: 0.7;
+  }
+
+  /* Стилі для карток в неактивних колонках */
+  .drop-disabled .kanban-card {
+    opacity: 0.8;
   }
 }

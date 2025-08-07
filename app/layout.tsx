@@ -19,7 +19,14 @@ export const metadata = {
     description: 'Professional task management system with Kanban board, team collaboration, and project tracking. Manage tasks efficiently with our intuitive interface.',
     url: 'https://task-management-chi-jade.vercel.app',
     siteName: 'WAY2B1 Task Management',
-    images: [],
+    images: [
+      {
+        url: '',
+        width: 0,
+        height: 0,
+        alt: '',
+      }
+    ],
     locale: 'en_US',
     type: 'website',
   },
@@ -29,7 +36,14 @@ export const metadata = {
     card: 'summary',
     title: 'WAY2B1 - Task Management & Kanban Board',
     description: 'Professional task management system with Kanban board, team collaboration, and project tracking. Manage tasks efficiently with our intuitive interface.',
-    images: [],
+    images: [
+      {
+        url: '',
+        width: 0,
+        height: 0,
+        alt: '',
+      }
+    ],
     creator: '@WAY2B1',
   },
   
@@ -64,6 +78,35 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta property="og:image:secure_url" content="" />
         <meta name="twitter:image:src" content="" />
         <meta property="article:author" content="" />
+        
+        {/* Блокуємо превью зображення */}
+        <meta property="og:image:width" content="0" />
+        <meta property="og:image:height" content="0" />
+        <meta name="twitter:image:alt" content="" />
+        <meta property="og:image:alt" content="" />
+        <meta property="og:image:type" content="" />
+        <meta name="twitter:image:width" content="0" />
+        <meta name="twitter:image:height" content="0" />
+        <meta property="og:image:secure_url" content="" />
+        <meta name="twitter:image:src" content="" />
+        
+        {/* Додаємо сірий фон для превью */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            @media (max-width: 1200px) {
+              body::before {
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: #f5f5f5;
+                z-index: -1;
+              }
+            }
+          `
+        }} />
       </head>
       <body className={inter.className} suppressHydrationWarning>
         {children}

@@ -13,6 +13,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { 
   CATEGORY_STATUS_MAPPING, 
+  GLOBAL_STAGE_MAPPING,
   mapCategoryStatusToGlobalStatuses,
   mapGlobalStatusToCategoryStatus,
   getCategoryStatuses 
@@ -456,6 +457,47 @@ export default function CategoryKanbanBoard({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [draggedTask, setDraggedTask] = useState<any>(null);
   const [expandedSubtasks, setExpandedSubtasks] = useState<Record<string, boolean>>({});
+
+  // Функція валідації переходів між статусами
+  const validateStatusTransition = (fromStatus: string, toStatus: string, category?: string): boolean => {
+    // Базова валідація
+    if (fromStatus === toStatus) {
+      return true;
+    }
+    
+    // Блокуємо повернення до "To Do" з просунутих статусів
+    const advancedStatuses = [
+      "in_progress", "working", "ongoing", "doing", "assigned", 
+      "in_review", "scheduled", "approved", "done", "completed", 
+      "validated", "paid", "closed"
+    ];
+    
+    if (advancedStatuses.includes(fromStatus) && toStatus === "to_do") {
+      console.log(`Transition blocked: Cannot move from ${fromStatus} back to to_do`);
+      return false;
+    }
+    
+    // Блокуємо повернення до початкових статусів з просунутих
+    const initialStatuses = ["to_do", "draft", "new", "backlog", "requested"];
+    if (advancedStatuses.includes(fromStatus) && initialStatuses.includes(toStatus)) {
+      console.log(`Transition blocked: Cannot move from ${fromStatus} back to ${toStatus}`);
+      return false;
+    }
+    
+    // Валідація для категорійних статусів
+    if (category && category !== "All tasks") {
+      const categoryMapping = CATEGORY_STATUS_MAPPING[category as keyof typeof CATEGORY_STATUS_MAPPING];
+      if (categoryMapping) {
+        // Перевірити чи існує такий статус в категорії
+        const validStatuses = Object.values(categoryMapping).flat();
+        return validStatuses.includes(toStatus);
+      }
+    }
+    
+    // Валідація для глобальних стейджів
+    const validGlobalStatuses = Object.values(GLOBAL_STAGE_MAPPING).flat();
+    return validGlobalStatuses.includes(toStatus);
+  };
 
   // Quick filters state
   const [quickFilters, setQuickFilters] = useState<Record<string, boolean>>({
@@ -1287,11 +1329,15 @@ export default function CategoryKanbanBoard({
     const tasks = getColumnTasks(column.id);
     const isCollapsed = collapsed[column.id];
     
+    // Логіка для неактивних колонок при drag & drop
+    const isDropDisabled = draggedTask ? !validateStatusTransition(draggedTask.status, column.id, category) : false;
+    const showDisabledState = draggedTask && isDropDisabled;
+    
     console.log(`CategoryKanbanBoard renderColumn: ${column.id}, isCollapsed: ${isCollapsed}, tasks count: ${tasks?.length || 0}`);
     
     return (
       <div key={column.id} className="flex-shrink-0">
-        <Droppable droppableId={column.id} type="TASK">
+        <Droppable droppableId={column.id} type="TASK" isDropDisabled={isDropDisabled}>
           {(provided, snapshot) => (
             <div
               ref={provided.innerRef}
@@ -1303,7 +1349,10 @@ export default function CategoryKanbanBoard({
                 isCollapsed 
                   ? 'min-w-[72px] max-w-[72px] h-[300px] cursor-pointer' 
                   : 'min-w-[320px] max-w-[380px] h-[calc(100vh-160px)]'
+              } ${
+                showDisabledState ? 'drop-disabled' : ''
               }`}
+              data-invalid-transition={showDisabledState && draggedTask ? `${draggedTask.status}-${column.id}` : undefined}
               style={{
                 borderWidth: snapshot.isDraggingOver ? '2px' : '1px',
                 borderStyle: 'solid',
