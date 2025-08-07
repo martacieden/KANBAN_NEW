@@ -21,10 +21,10 @@ export const metadata = {
     siteName: 'WAY2B1 Task Management',
     images: [
       {
-        url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=',
-        width: 1,
-        height: 1,
-        alt: 'Gray background',
+        url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
+        width: 1200,
+        height: 630,
+        alt: 'Beautiful mountain landscape',
       }
     ],
     locale: 'en_US',
@@ -38,10 +38,10 @@ export const metadata = {
     description: 'Professional task management system with Kanban board, team collaboration, and project tracking. Manage tasks efficiently with our intuitive interface.',
     images: [
       {
-        url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=',
-        width: 1,
-        height: 1,
-        alt: 'Gray background',
+        url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
+        width: 1200,
+        height: 630,
+        alt: 'Beautiful mountain landscape',
       }
     ],
     creator: '@WAY2B1',
@@ -72,41 +72,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta property="og:image" content="" />
-        <meta name="twitter:image" content="" />
-        <meta property="og:image:url" content="" />
-        <meta property="og:image:secure_url" content="" />
-        <meta name="twitter:image:src" content="" />
-        <meta property="article:author" content="" />
+        <meta property="og:image" content="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
+        <meta name="twitter:image" content="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
+        <meta property="og:image:url" content="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
+        <meta property="og:image:secure_url" content="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
+        <meta name="twitter:image:src" content="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
+        <meta property="article:author" content="WAY2B1" />
         
-        {/* Блокуємо превью зображення */}
-        <meta property="og:image:width" content="0" />
-        <meta property="og:image:height" content="0" />
-        <meta name="twitter:image:alt" content="" />
-        <meta property="og:image:alt" content="" />
-        <meta property="og:image:type" content="" />
-        <meta name="twitter:image:width" content="0" />
-        <meta name="twitter:image:height" content="0" />
-        <meta property="og:image:secure_url" content="" />
-        <meta name="twitter:image:src" content="" />
-        
-        {/* Додаткові теги для повного блокування */}
-        <meta property="og:image" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
-        <meta name="twitter:image" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
-        <meta property="og:image:url" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
-        
-        {/* Агресивне блокування всіх зображень */}
-        <meta property="og:image:width" content="1" />
-        <meta property="og:image:height" content="1" />
-        <meta name="twitter:image:width" content="1" />
-        <meta name="twitter:image:height" content="1" />
-        <meta property="og:image:type" content="image/svg+xml" />
-        <meta name="twitter:image:alt" content="Gray background" />
-        <meta property="og:image:alt" content="Gray background" />
-        
-        {/* Додаткові теги для різних платформ */}
-        <meta property="og:image:secure_url" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
-        <meta name="twitter:image:src" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
+        {/* Налаштування превью зображення */}
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:image:alt" content="Beautiful mountain landscape" />
+        <meta property="og:image:alt" content="Beautiful mountain landscape" />
+        <meta property="og:image:type" content="image/jpeg" />
+        <meta name="twitter:image:width" content="1200" />
+        <meta name="twitter:image:height" content="630" />
         
         {/* Додаємо сірий фон для превью */}
         <style dangerouslySetInnerHTML={{
