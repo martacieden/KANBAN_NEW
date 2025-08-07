@@ -21,10 +21,10 @@ export const metadata = {
     siteName: 'WAY2B1 Task Management',
     images: [
       {
-        url: '',
-        width: 0,
-        height: 0,
-        alt: '',
+        url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=',
+        width: 1,
+        height: 1,
+        alt: 'Gray background',
       }
     ],
     locale: 'en_US',
@@ -38,10 +38,10 @@ export const metadata = {
     description: 'Professional task management system with Kanban board, team collaboration, and project tracking. Manage tasks efficiently with our intuitive interface.',
     images: [
       {
-        url: '',
-        width: 0,
-        height: 0,
-        alt: '',
+        url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=',
+        width: 1,
+        height: 1,
+        alt: 'Gray background',
       }
     ],
     creator: '@WAY2B1',
@@ -89,6 +89,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="twitter:image:height" content="0" />
         <meta property="og:image:secure_url" content="" />
         <meta name="twitter:image:src" content="" />
+        
+        {/* Додаткові теги для повного блокування */}
+        <meta property="og:image" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
+        <meta name="twitter:image" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
+        <meta property="og:image:url" content="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4=" />
         
         {/* Додаємо сірий фон для превью */}
         <style dangerouslySetInnerHTML={{

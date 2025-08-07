@@ -16,8 +16,10 @@ export default function TopBar() {
         <button className="relative p-2 rounded-full hover:bg-gray-100">
           <Bell size={20} className="text-gray-500" />
         </button>
-        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-          <img src="/placeholder-user.svg" alt="User" className="w-full h-full object-cover" />
+        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center overflow-hidden">
+          <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+          </svg>
         </div>
       </div>
     </header>
